@@ -4,6 +4,8 @@ The original 448-second run did not have per-stage instrumentation. The first in
 
 The final prompt-v8, fresh-response-cache 24-question run took 181.66 seconds (27.64 setup, 22.57 API, 0.20 DuckDB execution, 131.25 other, mostly Retry-After waits). It made 24 API attempts, had 0 response-cache hits, and matched 10/10 independent reference SQL results.
 
+The historical report did not record retry events or wait duration. Its 13 LLM-routed questions and 24 API attempts imply 11 additional attempts, but the exact retry count and number of HTTP 429 rate-limit waits cannot be reconstructed reliably. Likewise, the 131.25-second residual includes any sleeps and reporting overhead, so it must not be labeled as an exact rate-limit-wait total. The runner now records retry attempts, HTTP 429 events, Retry-After waits, and wait seconds on future runs, both overall and per question.
+
 | Question | Wall s | API s | DuckDB s | Other s | API calls | Cache hits |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | NQ-001 | 1.930 | 1.898 | 0.010 | 0.021 | 1 | 0 |

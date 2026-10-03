@@ -72,6 +72,10 @@ def run(dataset_root: Path, output_dir: Path, questions_path: Path | None = None
             before_api = getattr(engine.llm_planner, "api_seconds", 0.0)
             before_calls = getattr(engine.llm_planner, "api_calls", 0)
             before_hits = getattr(engine.llm_planner, "cache_hits", 0)
+            before_retries = getattr(engine.llm_planner, "retry_count", 0)
+            before_rate_limits = getattr(engine.llm_planner, "rate_limit_count", 0)
+            before_retry_wait = getattr(engine.llm_planner, "retry_wait_seconds", 0.0)
+            before_rate_wait = getattr(engine.llm_planner, "rate_limit_wait_seconds", 0.0)
             before_query = engine.query_seconds
             card = engine.answer(row["question_text"], row.get("question_id") or None)
             cards.append(card)
@@ -87,6 +91,10 @@ def run(dataset_root: Path, output_dir: Path, questions_path: Path | None = None
                 "other_seconds": round(max(0.0, elapsed - api_time - query_time), 3),
                 "api_calls": getattr(engine.llm_planner, "api_calls", 0) - before_calls,
                 "cache_hits": getattr(engine.llm_planner, "cache_hits", 0) - before_hits,
+                "retries": getattr(engine.llm_planner, "retry_count", 0) - before_retries,
+                "rate_limits": getattr(engine.llm_planner, "rate_limit_count", 0) - before_rate_limits,
+                "retry_wait_seconds": round(getattr(engine.llm_planner, "retry_wait_seconds", 0.0) - before_retry_wait, 3),
+                "rate_limit_wait_seconds": round(getattr(engine.llm_planner, "rate_limit_wait_seconds", 0.0) - before_rate_wait, 3),
             })
         answers_path.parent.mkdir(parents=True, exist_ok=True)
         with answers_path.open("w", newline="", encoding="utf-8") as handle:
@@ -114,6 +122,11 @@ def run(dataset_root: Path, output_dir: Path, questions_path: Path | None = None
         "duckdb_seconds": round(engine.query_seconds, 2),
         "api_calls": getattr(engine.llm_planner, "api_calls", 0),
         "cache_hits": getattr(engine.llm_planner, "cache_hits", 0),
+        "retry_count": getattr(engine.llm_planner, "retry_count", 0),
+        "rate_limit_count": getattr(engine.llm_planner, "rate_limit_count", 0),
+        "rate_limit_wait_count": getattr(engine.llm_planner, "rate_limit_wait_count", 0),
+        "rate_limit_wait_seconds": round(getattr(engine.llm_planner, "rate_limit_wait_seconds", 0.0), 2),
+        "retry_wait_seconds": round(getattr(engine.llm_planner, "retry_wait_seconds", 0.0), 2),
         "results": results,
         "profiles": profiles,
     }
