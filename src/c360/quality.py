@@ -7,20 +7,19 @@ from collections.abc import Mapping
 import duckdb
 
 
-PROTECTED_COLUMNS = {
-    "gender", "marital_status", "citizenship", "household_status",
-    "newcomer_status", "accessibility_need", "vulnerability", "accent",
-}
+PROTECTED_COLUMN_MARKERS = (
+    "gender", "marital", "citizenship", "household", "newcomer",
+    "accessibility", "vulnerab", "accent", "ethnic", "religion", "disability",
+)
 
 
 def validate_publication(con: duckdb.DuckDBPyConnection, report: Mapping[str, object]) -> None:
     """Fail before publishing if identity, privacy, or case-resolution rules fail."""
-    golden_columns = {
-        row[0].lower() for row in con.execute("DESCRIBE golden_customers").fetchall()
-    }
-    forbidden = golden_columns & PROTECTED_COLUMNS
-    if forbidden:
-        raise RuntimeError(f"Protected columns in golden output: {sorted(forbidden)}")
+    for table in ("golden_customers", "identity_crosswalk"):
+        columns = (row[0].lower() for row in con.execute(f"DESCRIBE {table}").fetchall())
+        if any(marker in column for column in columns
+               for marker in PROTECTED_COLUMN_MARKERS):
+            raise RuntimeError(f"Protected columns in published {table} output")
 
     invalid_links = con.execute("""
         SELECT count(*) FROM identity_crosswalk

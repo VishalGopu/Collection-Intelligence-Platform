@@ -70,6 +70,12 @@ def test_protected_column_is_rejected(tables: duckdb.DuckDBPyConnection) -> None
         validate_publication(tables, good_report())
 
 
+def test_protected_crosswalk_column_is_rejected(tables: duckdb.DuckDBPyConnection) -> None:
+    tables.execute("ALTER TABLE identity_crosswalk ADD COLUMN vulnerable_customer_flag BOOLEAN")
+    with pytest.raises(RuntimeError, match="Protected columns"):
+        validate_publication(tables, good_report())
+
+
 def test_case_resolution_gate_fails(tables: duckdb.DuckDBPyConnection) -> None:
     report = good_report()
     report["unresolved_case_refs"] = 1
