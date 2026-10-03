@@ -186,6 +186,11 @@ using the pre-July train rate as a deployable constant gives **0.3059**.
 Calibrated LightGBM improves on both, but only slightly on the test-rate oracle.
 The logistic baseline uses all eligible pre-July training labels, while
 LightGBM reserves May-June for calibration and therefore fits fewer rows.
+The older **0.2391** Brier came from the v2 LightGBM fitted on all 137,149
+pre-July rows. The v3 **0.2465** raw Brier comes from a new model fitted on
+121,784 pre-May rows, leaving May-June for isotonic calibration. The calibrated
+v3 Brier is **0.2245**. The calibrator never saw test-period labels; full
+reconciliation is in `artifacts/brier_reconciliation.md`.
 Top-decile capture only modestly exceeds random ranking. The committed metrics JSON includes
 the full reliability table, risk-decile lift table and same-row comparisons to
 pre-promise `model_scores`.
