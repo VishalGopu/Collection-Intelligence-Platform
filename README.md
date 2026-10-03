@@ -18,6 +18,30 @@ See [the parallel workflow](docs/PARALLEL_WORKFLOW.md) for folder ownership and 
 
 The build-phase requirements are in `build_phase.pdf`; the proposed architecture is in `HACKERS_SystemDesign.pdf`.
 
+## How to run
+
+Work from the repository root. Download the Maple release using [the dataset guide](docs/DATASET_DOWNLOAD.md); it must be extracted at `maple_data/maple_collections_release/`. The dataset and generated files are local and ignored by Git.
+
+Windows PowerShell:
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r app\requirements.txt
+.\.venv\Scripts\python.exe -m src.c360.build
+.\.venv\Scripts\python.exe -m streamlit run app/main.py
+```
+
+Linux or macOS:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r app/requirements.txt
+.venv/bin/python -m src.c360.build
+.venv/bin/python -m streamlit run app/main.py
+```
+
+Open the local URL printed by Streamlit. The Customer tab starts with `G-39c6b287f70371cd9fc6`; choose another demo ID or paste a published golden ID. The Ask and Recommendation tabs show integration placeholders described in [the app interface note](app/INTERFACES.md). To verify Layer 1, run `python -m pytest tests/c360 -q` with the virtual-environment Python for your operating system after installing `pytest` into that environment.
+
 ## AI tools used (submission draft)
 
 - OpenAI API: optional structured SQL planning for new Layer 2 analytics questions. Generated SQL is validated and executed read-only in DuckDB; current live API validation is pending available account credits.

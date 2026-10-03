@@ -1,6 +1,6 @@
 """Build a conservative golden customer view from the Maple release.
 
-Run from the repository root with ``.venv/Scripts/python src/c360/build.py``.
+Run from the repository root with ``python -m src.c360.build``.
 The source release is read-only; all generated files go to local_artifacts/c360.
 """
 
@@ -13,7 +13,10 @@ from pathlib import Path
 
 import duckdb
 
-from quality import validate_publication
+if __package__:
+    from .quality import validate_publication
+else:
+    from quality import validate_publication
 
 
 SNAPSHOT_DATE = "2026-09-28"
