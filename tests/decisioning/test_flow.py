@@ -96,6 +96,14 @@ def test_hardship_or_safeguard_routes_to_specialist(engine, support):
     assert 'vulnerability' not in recommendation['reasons'][0].lower()
 
 
+def test_golden_and_crm_ids_produce_the_same_recommendation(engine):
+    by_golden = engine.recommend('G-0001')
+    by_crm = engine.recommend('0001')
+    assert by_golden['customer_id'] == by_crm['customer_id'] == 'G-0001'
+    assert by_golden['crm_customer_ids'] == by_crm['crm_customer_ids'] == ['0001']
+    assert by_golden['action'] == by_crm['action']
+
+
 def test_insolvency_hold_precedes_hardship_route(engine):
     engine.adapter.current = replace(engine.adapter.current, hardship=True, holds=['insolvency_hold'])
     assert engine.recommend('0001')['action'] == 'wait'

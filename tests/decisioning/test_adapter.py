@@ -68,6 +68,14 @@ def test_adapter_preserves_leading_zero_id_and_linked_customer(adapter):
     assert policy_checks(context)['call']['allowed']
 
 
+def test_golden_id_resolves_the_same_linked_crm_record(adapter):
+    by_crm = adapter.context('0001', DEMO_AS_OF)
+    by_golden = adapter.context('G-1', DEMO_AS_OF)
+    assert by_golden.customer_id == by_crm.customer_id
+    assert by_golden.crm_ids == ['0001']
+    assert by_golden.case_ids == by_crm.case_ids
+
+
 def test_unapproved_identity_cannot_recommend(adapter):
     with pytest.raises(ValueError, match='approved C360 link'):
         adapter.context('0002', DEMO_AS_OF)
