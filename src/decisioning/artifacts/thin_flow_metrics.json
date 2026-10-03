@@ -1,0 +1,85 @@
+{
+  "phase": "thin end-to-end MVP",
+  "generated_at": "2026-10-03T12:16:23.223022+00:00",
+  "data_snapshot_date": "2026-09-28",
+  "prediction_as_of": "2026-09-28T16:00:00+00:00",
+  "normal_demo_customer": {
+    "crm_customer_id": "AAA-4262",
+    "golden_customer_id": "G-b1714eca2809e88d7587",
+    "link_status": "linked",
+    "action": "call",
+    "score": 0.118139
+  },
+  "specialist_demo_customer": {
+    "crm_customer_id": "AAA-7546",
+    "golden_customer_id": "G-c4a6b6148266a0018109",
+    "link_status": "linked",
+    "action": "specialist_review",
+    "agent_id": "AG-1584"
+  },
+  "channel_evidence": {
+    "call": {
+      "attempts": 137206,
+      "right_party_contacts": 54563,
+      "rpc_rate": 0.39767211346442577,
+      "smoothed_rpc_rate": 0.3976736050376071,
+      "mean_contact_cost_cad": 1.34567562643033,
+      "latest_source_ts": "2026-09-27T23:58:50",
+      "time_band": "afternoon"
+    },
+    "sms": {
+      "attempts": 48623,
+      "right_party_contacts": 0,
+      "rpc_rate": 0.0,
+      "smoothed_rpc_rate": 2.0565552699228792e-05,
+      "mean_contact_cost_cad": 0.010000000000000217,
+      "latest_source_ts": "2026-09-27T23:41:32",
+      "time_band": "afternoon"
+    },
+    "email": {
+      "attempts": 31097,
+      "right_party_contacts": 0,
+      "rpc_rate": 0.0,
+      "smoothed_rpc_rate": 3.2155374770892955e-05,
+      "mean_contact_cost_cad": 0.0009999999999999462,
+      "latest_source_ts": "2026-09-27T22:45:27",
+      "time_band": "afternoon"
+    },
+    "push": {
+      "attempts": 7917,
+      "right_party_contacts": 0,
+      "rpc_rate": 0.0,
+      "smoothed_rpc_rate": 0.00012627857052658164,
+      "mean_contact_cost_cad": 0.0010000000000000007,
+      "latest_source_ts": "2026-09-27T23:16:17",
+      "time_band": "afternoon"
+    }
+  },
+  "scoring_assumptions": {
+    "rpc_rate": 0.8,
+    "relative_contact_cost": -0.2,
+    "payment_plan_bonus_after_two_broken_promises": 0.05,
+    "wait_score": 0.02
+  },
+  "checks": {
+    "linked_identity_contract": "passed",
+    "recommendation_persisted": "passed",
+    "approve_modify_reject_audit": "passed",
+    "specialist_suppresses_normal_actions": "passed",
+    "persisted_review_count": 4
+  },
+  "elapsed_seconds": 3.247,
+  "models": {
+    "logistic_regression": "pending",
+    "lightgbm": "pending",
+    "historical_model_scores_comparison": "pending",
+    "shap": "pending"
+  },
+  "limitations": [
+    "Observational channel rates: agents chose channels; these are not causal effects.",
+    "Scores are assumed utilities, not repayment probabilities; trained models and SHAP are pending.",
+    "Frozen 2026-09-28 snapshot; this is a demo, not a live action execution system.",
+    "Global channel/time-band rates; missing RPC labels are excluded.",
+    "The release records zero RPCs for digital channels in the demo band; this metric may be call-oriented."
+  ]
+}

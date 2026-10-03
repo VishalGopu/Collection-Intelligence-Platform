@@ -1,0 +1,824 @@
+{
+  "decisions": [
+    {
+      "decision_id": "c7acf935-5515-42eb-b3e7-d8f61d58cf36",
+      "customer_id": "G-b1714eca2809e88d7587",
+      "crm_customer_ids": [
+        "AAA-4262"
+      ],
+      "identity_mode": "linked_c360",
+      "as_of": "2026-09-28T16:00:00+00:00",
+      "data_snapshot_date": "2026-09-28",
+      "action": "call",
+      "channel": "call",
+      "score": 0.118139,
+      "probabilities": {
+        "promise_kept": null,
+        "observed_rpc_by_channel": {
+          "call": 0.39767211346442577,
+          "sms": 0.0,
+          "email": 0.0,
+          "push": 0.0
+        }
+      },
+      "policy_checks": {
+        "call": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "sms": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "email": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "push": {
+          "allowed": false,
+          "reasons": [
+            "channel_consent_missing_or_conflicting"
+          ],
+          "transport": null
+        },
+        "payment_plan_discussion": {
+          "allowed": true,
+          "reasons": [],
+          "transport": "call"
+        },
+        "wait": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "specialist_review": {
+          "allowed": false,
+          "reasons": [
+            "no_specialist_route_needed"
+          ],
+          "transport": null
+        }
+      },
+      "reasons": [
+        "CALL had 54563 right-party contacts in 137206 outbound attempts in the afternoon band over the prior 90 days (39.8%), at an average cost of CAD 1.35; the assumed rate/cost weights favour this option."
+      ],
+      "alternatives": [
+        {
+          "action": "wait",
+          "score": 0.02,
+          "channel": null
+        },
+        {
+          "action": "email",
+          "score": -0.000123,
+          "channel": "email",
+          "evidence": {
+            "attempts": 31097,
+            "right_party_contacts": 0,
+            "rpc_rate": 0.0,
+            "smoothed_rpc_rate": 3.2155374770892955e-05,
+            "mean_contact_cost_cad": 0.0009999999999999462,
+            "latest_source_ts": "2026-09-27T22:45:27",
+            "time_band": "afternoon"
+          }
+        },
+        {
+          "action": "sms",
+          "score": -0.00147,
+          "channel": "sms",
+          "evidence": {
+            "attempts": 48623,
+            "right_party_contacts": 0,
+            "rpc_rate": 0.0,
+            "smoothed_rpc_rate": 2.0565552699228792e-05,
+            "mean_contact_cost_cad": 0.010000000000000217,
+            "latest_source_ts": "2026-09-27T23:41:32",
+            "time_band": "afternoon"
+          }
+        }
+      ],
+      "channel_evidence": {
+        "call": {
+          "attempts": 137206,
+          "right_party_contacts": 54563,
+          "rpc_rate": 0.39767211346442577,
+          "smoothed_rpc_rate": 0.3976736050376071,
+          "mean_contact_cost_cad": 1.34567562643033,
+          "latest_source_ts": "2026-09-27T23:58:50",
+          "time_band": "afternoon"
+        },
+        "sms": {
+          "attempts": 48623,
+          "right_party_contacts": 0,
+          "rpc_rate": 0.0,
+          "smoothed_rpc_rate": 2.0565552699228792e-05,
+          "mean_contact_cost_cad": 0.010000000000000217,
+          "latest_source_ts": "2026-09-27T23:41:32",
+          "time_band": "afternoon"
+        },
+        "email": {
+          "attempts": 31097,
+          "right_party_contacts": 0,
+          "rpc_rate": 0.0,
+          "smoothed_rpc_rate": 3.2155374770892955e-05,
+          "mean_contact_cost_cad": 0.0009999999999999462,
+          "latest_source_ts": "2026-09-27T22:45:27",
+          "time_band": "afternoon"
+        },
+        "push": {
+          "attempts": 7917,
+          "right_party_contacts": 0,
+          "rpc_rate": 0.0,
+          "smoothed_rpc_rate": 0.00012627857052658164,
+          "mean_contact_cost_cad": 0.0010000000000000007,
+          "latest_source_ts": "2026-09-27T23:16:17",
+          "time_band": "afternoon"
+        }
+      },
+      "specialist_agent_id": null,
+      "requires_human_review": true,
+      "status": "pending_review",
+      "scorer_version": "explicit-rule-v1",
+      "policy_version": "maple-thin-v1",
+      "scoring_assumptions": {
+        "rpc_rate": 0.8,
+        "relative_contact_cost": -0.2,
+        "payment_plan_bonus_after_two_broken_promises": 0.05,
+        "wait_score": 0.02
+      },
+      "limitations": [
+        "Observational channel rates: agents chose channels; these are not causal effects.",
+        "Scores are assumed utilities, not repayment probabilities; trained models and SHAP are pending.",
+        "Frozen 2026-09-28 snapshot; this is a demo, not a live action execution system.",
+        "Global channel/time-band rates; missing RPC labels are excluded.",
+        "The release records zero RPCs for digital channels in the demo band; this metric may be call-oriented."
+      ]
+    },
+    {
+      "decision_id": "fa7809b1-6e3d-4c30-beca-a3abf5fd0a03",
+      "customer_id": "G-b1714eca2809e88d7587",
+      "crm_customer_ids": [
+        "AAA-4262"
+      ],
+      "identity_mode": "linked_c360",
+      "as_of": "2026-09-28T16:00:00+00:00",
+      "data_snapshot_date": "2026-09-28",
+      "action": "call",
+      "channel": "call",
+      "score": 0.118139,
+      "probabilities": {
+        "promise_kept": null,
+        "observed_rpc_by_channel": {
+          "call": 0.39767211346442577,
+          "sms": 0.0,
+          "email": 0.0,
+          "push": 0.0
+        }
+      },
+      "policy_checks": {
+        "call": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "sms": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "email": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "push": {
+          "allowed": false,
+          "reasons": [
+            "channel_consent_missing_or_conflicting"
+          ],
+          "transport": null
+        },
+        "payment_plan_discussion": {
+          "allowed": true,
+          "reasons": [],
+          "transport": "call"
+        },
+        "wait": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "specialist_review": {
+          "allowed": false,
+          "reasons": [
+            "no_specialist_route_needed"
+          ],
+          "transport": null
+        }
+      },
+      "reasons": [
+        "CALL had 54563 right-party contacts in 137206 outbound attempts in the afternoon band over the prior 90 days (39.8%), at an average cost of CAD 1.35; the assumed rate/cost weights favour this option."
+      ],
+      "alternatives": [
+        {
+          "action": "wait",
+          "score": 0.02,
+          "channel": null
+        },
+        {
+          "action": "email",
+          "score": -0.000123,
+          "channel": "email",
+          "evidence": {
+            "attempts": 31097,
+            "right_party_contacts": 0,
+            "rpc_rate": 0.0,
+            "smoothed_rpc_rate": 3.2155374770892955e-05,
+            "mean_contact_cost_cad": 0.000999999999999947,
+            "latest_source_ts": "2026-09-27T22:45:27",
+            "time_band": "afternoon"
+          }
+        },
+        {
+          "action": "sms",
+          "score": -0.00147,
+          "channel": "sms",
+          "evidence": {
+            "attempts": 48623,
+            "right_party_contacts": 0,
+            "rpc_rate": 0.0,
+            "smoothed_rpc_rate": 2.0565552699228792e-05,
+            "mean_contact_cost_cad": 0.01000000000000026,
+            "latest_source_ts": "2026-09-27T23:41:32",
+            "time_band": "afternoon"
+          }
+        }
+      ],
+      "channel_evidence": {
+        "call": {
+          "attempts": 137206,
+          "right_party_contacts": 54563,
+          "rpc_rate": 0.39767211346442577,
+          "smoothed_rpc_rate": 0.3976736050376071,
+          "mean_contact_cost_cad": 1.3456756264303302,
+          "latest_source_ts": "2026-09-27T23:58:50",
+          "time_band": "afternoon"
+        },
+        "sms": {
+          "attempts": 48623,
+          "right_party_contacts": 0,
+          "rpc_rate": 0.0,
+          "smoothed_rpc_rate": 2.0565552699228792e-05,
+          "mean_contact_cost_cad": 0.01000000000000026,
+          "latest_source_ts": "2026-09-27T23:41:32",
+          "time_band": "afternoon"
+        },
+        "email": {
+          "attempts": 31097,
+          "right_party_contacts": 0,
+          "rpc_rate": 0.0,
+          "smoothed_rpc_rate": 3.2155374770892955e-05,
+          "mean_contact_cost_cad": 0.000999999999999947,
+          "latest_source_ts": "2026-09-27T22:45:27",
+          "time_band": "afternoon"
+        },
+        "push": {
+          "attempts": 7917,
+          "right_party_contacts": 0,
+          "rpc_rate": 0.0,
+          "smoothed_rpc_rate": 0.00012627857052658164,
+          "mean_contact_cost_cad": 0.0010000000000000007,
+          "latest_source_ts": "2026-09-27T23:16:17",
+          "time_band": "afternoon"
+        }
+      },
+      "specialist_agent_id": null,
+      "requires_human_review": true,
+      "status": "pending_review",
+      "scorer_version": "explicit-rule-v1",
+      "policy_version": "maple-thin-v1",
+      "scoring_assumptions": {
+        "rpc_rate": 0.8,
+        "relative_contact_cost": -0.2,
+        "payment_plan_bonus_after_two_broken_promises": 0.05,
+        "wait_score": 0.02
+      },
+      "limitations": [
+        "Observational channel rates: agents chose channels; these are not causal effects.",
+        "Scores are assumed utilities, not repayment probabilities; trained models and SHAP are pending.",
+        "Frozen 2026-09-28 snapshot; this is a demo, not a live action execution system.",
+        "Global channel/time-band rates; missing RPC labels are excluded.",
+        "The release records zero RPCs for digital channels in the demo band; this metric may be call-oriented."
+      ]
+    },
+    {
+      "decision_id": "12328887-b7b3-459f-b438-8332f02bd006",
+      "customer_id": "G-b1714eca2809e88d7587",
+      "crm_customer_ids": [
+        "AAA-4262"
+      ],
+      "identity_mode": "linked_c360",
+      "as_of": "2026-09-28T16:00:00+00:00",
+      "data_snapshot_date": "2026-09-28",
+      "action": "call",
+      "channel": "call",
+      "score": 0.118139,
+      "probabilities": {
+        "promise_kept": null,
+        "observed_rpc_by_channel": {
+          "call": 0.39767211346442577,
+          "sms": 0.0,
+          "email": 0.0,
+          "push": 0.0
+        }
+      },
+      "policy_checks": {
+        "call": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "sms": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "email": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "push": {
+          "allowed": false,
+          "reasons": [
+            "channel_consent_missing_or_conflicting"
+          ],
+          "transport": null
+        },
+        "payment_plan_discussion": {
+          "allowed": true,
+          "reasons": [],
+          "transport": "call"
+        },
+        "wait": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "specialist_review": {
+          "allowed": false,
+          "reasons": [
+            "no_specialist_route_needed"
+          ],
+          "transport": null
+        }
+      },
+      "reasons": [
+        "CALL had 54563 right-party contacts in 137206 outbound attempts in the afternoon band over the prior 90 days (39.8%), at an average cost of CAD 1.35; the assumed rate/cost weights favour this option."
+      ],
+      "alternatives": [
+        {
+          "action": "wait",
+          "score": 0.02,
+          "channel": null
+        },
+        {
+          "action": "email",
+          "score": -0.000123,
+          "channel": "email",
+          "evidence": {
+            "attempts": 31097,
+            "right_party_contacts": 0,
+            "rpc_rate": 0.0,
+            "smoothed_rpc_rate": 3.2155374770892955e-05,
+            "mean_contact_cost_cad": 0.000999999999999947,
+            "latest_source_ts": "2026-09-27T22:45:27",
+            "time_band": "afternoon"
+          }
+        },
+        {
+          "action": "sms",
+          "score": -0.00147,
+          "channel": "sms",
+          "evidence": {
+            "attempts": 48623,
+            "right_party_contacts": 0,
+            "rpc_rate": 0.0,
+            "smoothed_rpc_rate": 2.0565552699228792e-05,
+            "mean_contact_cost_cad": 0.01000000000000037,
+            "latest_source_ts": "2026-09-27T23:41:32",
+            "time_band": "afternoon"
+          }
+        }
+      ],
+      "channel_evidence": {
+        "call": {
+          "attempts": 137206,
+          "right_party_contacts": 54563,
+          "rpc_rate": 0.39767211346442577,
+          "smoothed_rpc_rate": 0.3976736050376071,
+          "mean_contact_cost_cad": 1.3456756264303302,
+          "latest_source_ts": "2026-09-27T23:58:50",
+          "time_band": "afternoon"
+        },
+        "sms": {
+          "attempts": 48623,
+          "right_party_contacts": 0,
+          "rpc_rate": 0.0,
+          "smoothed_rpc_rate": 2.0565552699228792e-05,
+          "mean_contact_cost_cad": 0.01000000000000037,
+          "latest_source_ts": "2026-09-27T23:41:32",
+          "time_band": "afternoon"
+        },
+        "email": {
+          "attempts": 31097,
+          "right_party_contacts": 0,
+          "rpc_rate": 0.0,
+          "smoothed_rpc_rate": 3.2155374770892955e-05,
+          "mean_contact_cost_cad": 0.000999999999999947,
+          "latest_source_ts": "2026-09-27T22:45:27",
+          "time_band": "afternoon"
+        },
+        "push": {
+          "attempts": 7917,
+          "right_party_contacts": 0,
+          "rpc_rate": 0.0,
+          "smoothed_rpc_rate": 0.00012627857052658164,
+          "mean_contact_cost_cad": 0.0010000000000000007,
+          "latest_source_ts": "2026-09-27T23:16:17",
+          "time_band": "afternoon"
+        }
+      },
+      "specialist_agent_id": null,
+      "requires_human_review": true,
+      "status": "pending_review",
+      "scorer_version": "explicit-rule-v1",
+      "policy_version": "maple-thin-v1",
+      "scoring_assumptions": {
+        "rpc_rate": 0.8,
+        "relative_contact_cost": -0.2,
+        "payment_plan_bonus_after_two_broken_promises": 0.05,
+        "wait_score": 0.02
+      },
+      "limitations": [
+        "Observational channel rates: agents chose channels; these are not causal effects.",
+        "Scores are assumed utilities, not repayment probabilities; trained models and SHAP are pending.",
+        "Frozen 2026-09-28 snapshot; this is a demo, not a live action execution system.",
+        "Global channel/time-band rates; missing RPC labels are excluded.",
+        "The release records zero RPCs for digital channels in the demo band; this metric may be call-oriented."
+      ]
+    },
+    {
+      "decision_id": "04ed2a3e-397b-451f-8446-65df918f2d83",
+      "customer_id": "G-c4a6b6148266a0018109",
+      "crm_customer_ids": [
+        "AAA-7546"
+      ],
+      "identity_mode": "linked_c360",
+      "as_of": "2026-09-28T16:00:00+00:00",
+      "data_snapshot_date": "2026-09-28",
+      "action": "specialist_review",
+      "channel": null,
+      "score": null,
+      "probabilities": {
+        "promise_kept": null,
+        "observed_rpc_by_channel": {
+          "call": 0.39767211346442577,
+          "sms": 0.0,
+          "email": 0.0,
+          "push": 0.0
+        }
+      },
+      "policy_checks": {
+        "call": {
+          "allowed": false,
+          "reasons": [
+            "specialist_route_required"
+          ],
+          "transport": null
+        },
+        "sms": {
+          "allowed": false,
+          "reasons": [
+            "specialist_route_required"
+          ],
+          "transport": null
+        },
+        "email": {
+          "allowed": false,
+          "reasons": [
+            "channel_consent_missing_or_conflicting",
+            "specialist_route_required"
+          ],
+          "transport": null
+        },
+        "push": {
+          "allowed": false,
+          "reasons": [
+            "specialist_route_required"
+          ],
+          "transport": null
+        },
+        "payment_plan_discussion": {
+          "allowed": false,
+          "reasons": [
+            "specialist_route_required"
+          ],
+          "transport": "call"
+        },
+        "wait": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "specialist_review": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        }
+      },
+      "reasons": [
+        "A support safeguard requires specialist review; normal collection actions are suppressed."
+      ],
+      "alternatives": [
+        {
+          "action": "wait",
+          "score": null,
+          "channel": null
+        }
+      ],
+      "channel_evidence": {
+        "call": {
+          "attempts": 137206,
+          "right_party_contacts": 54563,
+          "rpc_rate": 0.39767211346442577,
+          "smoothed_rpc_rate": 0.3976736050376071,
+          "mean_contact_cost_cad": 1.3456756264303305,
+          "latest_source_ts": "2026-09-27T23:58:50",
+          "time_band": "afternoon"
+        },
+        "sms": {
+          "attempts": 48623,
+          "right_party_contacts": 0,
+          "rpc_rate": 0.0,
+          "smoothed_rpc_rate": 2.0565552699228792e-05,
+          "mean_contact_cost_cad": 0.010000000000000193,
+          "latest_source_ts": "2026-09-27T23:41:32",
+          "time_band": "afternoon"
+        },
+        "email": {
+          "attempts": 31097,
+          "right_party_contacts": 0,
+          "rpc_rate": 0.0,
+          "smoothed_rpc_rate": 3.2155374770892955e-05,
+          "mean_contact_cost_cad": 0.0009999999999999462,
+          "latest_source_ts": "2026-09-27T22:45:27",
+          "time_band": "afternoon"
+        },
+        "push": {
+          "attempts": 7917,
+          "right_party_contacts": 0,
+          "rpc_rate": 0.0,
+          "smoothed_rpc_rate": 0.00012627857052658164,
+          "mean_contact_cost_cad": 0.0010000000000000007,
+          "latest_source_ts": "2026-09-27T23:16:17",
+          "time_band": "afternoon"
+        }
+      },
+      "specialist_agent_id": "AG-1584",
+      "requires_human_review": true,
+      "status": "pending_review",
+      "scorer_version": "explicit-rule-v1",
+      "policy_version": "maple-thin-v1",
+      "scoring_assumptions": {
+        "rpc_rate": 0.8,
+        "relative_contact_cost": -0.2,
+        "payment_plan_bonus_after_two_broken_promises": 0.05,
+        "wait_score": 0.02
+      },
+      "limitations": [
+        "Observational channel rates: agents chose channels; these are not causal effects.",
+        "Scores are assumed utilities, not repayment probabilities; trained models and SHAP are pending.",
+        "Frozen 2026-09-28 snapshot; this is a demo, not a live action execution system.",
+        "Global channel/time-band rates; missing RPC labels are excluded.",
+        "The release records zero RPCs for digital channels in the demo band; this metric may be call-oriented."
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "event_id": "d13ba54e-421f-48a4-8f81-1d46d9e2c5be",
+      "decision_id": "c7acf935-5515-42eb-b3e7-d8f61d58cf36",
+      "reviewed_at": "2026-10-03T12:16:22.136202+00:00",
+      "reviewer": "demo-reviewer",
+      "disposition": "approve",
+      "original_action": "call",
+      "final_action": "call",
+      "reason": "Reviewed permitted channel and historical evidence",
+      "validation": {
+        "call": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "sms": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "email": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "push": {
+          "allowed": false,
+          "reasons": [
+            "channel_consent_missing_or_conflicting"
+          ],
+          "transport": null
+        },
+        "payment_plan_discussion": {
+          "allowed": true,
+          "reasons": [],
+          "transport": "call"
+        },
+        "wait": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "specialist_review": {
+          "allowed": false,
+          "reasons": [
+            "no_specialist_route_needed"
+          ],
+          "transport": null
+        }
+      }
+    },
+    {
+      "event_id": "7e163da4-06d8-431f-bc47-973ea6f39013",
+      "decision_id": "fa7809b1-6e3d-4c30-beca-a3abf5fd0a03",
+      "reviewed_at": "2026-10-03T12:16:22.612149+00:00",
+      "reviewer": "demo-reviewer",
+      "disposition": "modify",
+      "original_action": "call",
+      "final_action": "wait",
+      "reason": "Reviewer chooses to defer contact",
+      "validation": {
+        "call": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "sms": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "email": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "push": {
+          "allowed": false,
+          "reasons": [
+            "channel_consent_missing_or_conflicting"
+          ],
+          "transport": null
+        },
+        "payment_plan_discussion": {
+          "allowed": true,
+          "reasons": [],
+          "transport": "call"
+        },
+        "wait": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "specialist_review": {
+          "allowed": false,
+          "reasons": [
+            "no_specialist_route_needed"
+          ],
+          "transport": null
+        }
+      }
+    },
+    {
+      "event_id": "f28c3b9c-9ce1-427f-a5e2-5935ab7ab435",
+      "decision_id": "12328887-b7b3-459f-b438-8332f02bd006",
+      "reviewed_at": "2026-10-03T12:16:23.021440+00:00",
+      "reviewer": "demo-reviewer",
+      "disposition": "reject",
+      "original_action": "call",
+      "final_action": null,
+      "reason": "Reviewer rejects proposed contact",
+      "validation": {
+        "call": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "sms": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "email": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "push": {
+          "allowed": false,
+          "reasons": [
+            "channel_consent_missing_or_conflicting"
+          ],
+          "transport": null
+        },
+        "payment_plan_discussion": {
+          "allowed": true,
+          "reasons": [],
+          "transport": "call"
+        },
+        "wait": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "specialist_review": {
+          "allowed": false,
+          "reasons": [
+            "no_specialist_route_needed"
+          ],
+          "transport": null
+        }
+      }
+    },
+    {
+      "event_id": "7565e7f9-8dd3-486a-ab76-ca496fc23850",
+      "decision_id": "04ed2a3e-397b-451f-8446-65df918f2d83",
+      "reviewed_at": "2026-10-03T12:16:23.219376+00:00",
+      "reviewer": "demo-reviewer",
+      "disposition": "approve",
+      "original_action": "specialist_review",
+      "final_action": "specialist_review",
+      "reason": "Approve internal specialist review",
+      "validation": {
+        "call": {
+          "allowed": false,
+          "reasons": [
+            "specialist_route_required"
+          ],
+          "transport": null
+        },
+        "sms": {
+          "allowed": false,
+          "reasons": [
+            "specialist_route_required"
+          ],
+          "transport": null
+        },
+        "email": {
+          "allowed": false,
+          "reasons": [
+            "channel_consent_missing_or_conflicting",
+            "specialist_route_required"
+          ],
+          "transport": null
+        },
+        "push": {
+          "allowed": false,
+          "reasons": [
+            "specialist_route_required"
+          ],
+          "transport": null
+        },
+        "payment_plan_discussion": {
+          "allowed": false,
+          "reasons": [
+            "specialist_route_required"
+          ],
+          "transport": "call"
+        },
+        "wait": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        },
+        "specialist_review": {
+          "allowed": true,
+          "reasons": [],
+          "transport": null
+        }
+      }
+    }
+  ]
+}
