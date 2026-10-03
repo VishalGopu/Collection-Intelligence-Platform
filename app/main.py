@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from app.ask import answer as answer_question
 from app.customer import load_customer
 
 
@@ -30,6 +31,7 @@ customer_tab, ask_tab, recommendation_tab = st.tabs(
     ["Customer", "Ask", "Recommendation"]
 )
 
+customer = None
 with customer_tab:
     if "golden_id" not in st.session_state:
         st.session_state.golden_id = HERO_ID
@@ -81,7 +83,32 @@ with customer_tab:
                 st.dataframe(identity["links"], width="stretch", hide_index=True)
 
 with ask_tab:
-    st.info("The Questions team will connect its answer function here. See app/INTERFACES.md.")
+    st.subheader("Ask Collections")
+    st.caption("General metrics and policy answers use the 28 September 2026 release. "
+               "Case questions must refer to a case linked to the selected golden customer.")
+    question = st.text_area("Question", key="ask_question",
+                            placeholder="What is the average days past due of open cases by queue?")
+    if st.button("Get answer", key="ask_submit"):
+        try:
+            st.session_state.ask_result = answer_question(
+                question, golden_customer_id=st.session_state.golden_id.strip(),
+                customer_context=customer if customer and customer["found"] else None,
+            )
+        except Exception as error:
+            st.session_state.ask_result = None
+            st.error(f"Could not answer the question: {error}")
+    result = st.session_state.get("ask_result")
+    if result:
+        if result["refused"]:
+            st.warning(f"Refused: {result['answer']}")
+        else:
+            st.write(result["answer"])
+        st.caption(f"Data date: {result['data_date']} · Scope: {result['scope']} · "
+                   f"Mode: {result['mode']}")
+        st.markdown("**Metric definition**")
+        st.write(result["metric_definition"] or "No certified metric definition applies to this answer.")
+        st.markdown("**SQL or sources**")
+        st.code(result["sql_or_sources"])
 
 with recommendation_tab:
     st.info("The Decisioning team will connect recommend() here. See app/INTERFACES.md.")
