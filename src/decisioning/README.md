@@ -308,6 +308,16 @@ ranking or explanation paths.
   support routing affect actions; no causal disparity or parity conclusion is
   warranted, and protected fields remain measurement-only.
 
+The expanded `artifacts/fairness_test_period.md` covers **all 52,283** linked,
+quality-passed test-period promises and reports customer-clustered 95% intervals.
+It measures predicted break risk, actual break rate and the last **historical**
+outbound channel before each promise. It does not reconstruct historical
+recommendations. Women and men have similar mean predicted risk (0.540 and
+0.541). Citizens average 0.544 versus 0.530 for permanent residents; actual
+broken rates are 0.630 versus 0.610. Those differences are descriptive. The
+broken rate rose from 35.7% in pre-July training to 62.5% in this linked test
+cohort, a material drift that limits calibration and group comparisons.
+
 ## Point-in-time text signals (API extraction pending)
 
 `src/features/text.py` defines `hardship_signal` (`none`, `possible`, `clear`)
