@@ -20,7 +20,7 @@ def main() -> None:
 
     app = AppTest.from_file(str(Path(__file__).with_name("main.py")), default_timeout=120).run()
     assert not app.exception and not app.error
-    assert [tab.label for tab in app.tabs] == ["Customer", "Ask", "Recommendation"]
+    assert [tab.label for tab in app.tabs] == ["Customer", "Ask", "Recommendation", "Worklist"]
     assert app.text_input(key="golden_id").value == HERO_ID
 
     app.text_area(key="ask_question").set_value(

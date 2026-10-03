@@ -10,7 +10,7 @@ Hackathon build for a golden customer view (C360), grounded collections question
 | `src/insights/` | Certified metrics, document lookup, cited answers, refusals, benchmark runner |
 | `src/features/` | Shared point-in-time feature definitions |
 | `src/decisioning/` | Policy gate, scoring, reasons, human review |
-| `app/` | Streamlit Customer, Ask, and Recommendation tabs |
+| `app/` | Streamlit Customer, Ask, Recommendation, and Worklist tabs |
 | `contracts/` | Published data interface |
 | `local_artifacts/` | Generated local files, ignored by Git |
 | `submission/` | Final artifacts to commit for judging |
@@ -33,6 +33,8 @@ py -3 -m venv .venv
 .\.venv\Scripts\python.exe -m src.c360.build
 .\.venv\Scripts\python.exe -m pytest tests -q
 .\.venv\Scripts\python.exe -m app.smoke
+.\.venv\Scripts\python.exe -m src.features.training
+.\.venv\Scripts\python.exe -m src.features.candidates --base local_artifacts/features/open_promise_features.parquet --output local_artifacts/features/open_promise_candidates.parquet
 .\.venv\Scripts\python.exe -m streamlit run app/main.py
 ```
 
@@ -46,10 +48,12 @@ python3 -m venv .venv
 .venv/bin/python -m src.c360.build
 .venv/bin/python -m pytest tests -q
 .venv/bin/python -m app.smoke
+.venv/bin/python -m src.features.training
+.venv/bin/python -m src.features.candidates --base local_artifacts/features/open_promise_features.parquet --output local_artifacts/features/open_promise_candidates.parquet
 .venv/bin/python -m streamlit run app/main.py
 ```
 
-Download the dataset before the build command; see the dataset guide for its exact commands and access steps. Open the local URL printed by Streamlit. The Customer tab starts with `G-39c6b287f70371cd9fc6`; choose another demo ID or paste a published golden ID. Ask shows answers with evidence and refusals; Recommendation creates a proposal for human review and shows local audit rows. The smoke command writes a local test rejection to the ignored audit database. Stop the app with Ctrl+C.
+Download the dataset before the build command; see the dataset guide for its exact commands and access steps. Open the local URL printed by Streamlit. The Customer tab starts with `G-39c6b287f70371cd9fc6`; choose another demo ID or paste a published golden ID. Ask shows answers with evidence and refusals; Recommendation creates a proposal for human review and shows local audit rows. Worklist loads ranked open promises after the two feature commands. The smoke command writes a local test rejection to the ignored audit database. Stop the app with Ctrl+C.
 
 The [implemented architecture diagram](docs/architecture_built.png) shows the built components, AI use, and human review. [App interfaces](app/INTERFACES.md) and [hero-flow results](app/INTEGRATION_TEST.md) describe the current integration.
 

@@ -6,7 +6,7 @@ import streamlit as st
 
 from app.ask import answer as answer_question
 from app.customer import load_customer
-from app.recommend import connected, latest_audit_rows, recommend, review
+from app.recommend import connected, latest_audit_rows, recommend, review, worklist
 
 
 HERO_ID = "G-39c6b287f70371cd9fc6"
@@ -28,8 +28,8 @@ st.set_page_config(page_title="Collection Intelligence", layout="wide")
 st.title("Collection Intelligence")
 st.caption("Published C360 snapshot · 28 September 2026 · linked source records only")
 
-customer_tab, ask_tab, recommendation_tab = st.tabs(
-    ["Customer", "Ask", "Recommendation"]
+customer_tab, ask_tab, recommendation_tab, worklist_tab = st.tabs(
+    ["Customer", "Ask", "Recommendation", "Worklist"]
 )
 
 customer = None
@@ -179,3 +179,24 @@ with recommendation_tab:
                         st.success(f"Recorded {event['disposition']} review: {event['event_id']}")
         st.markdown("**Latest audit rows for this customer**")
         st.dataframe(latest_audit_rows(selected_id), width="stretch", hide_index=True)
+
+with worklist_tab:
+    st.subheader("Open promise worklist")
+    st.caption("Linked open promises ranked by predicted break risk using only evidence available before each promise was created. Human review is required before any action.")
+    if st.button("Load worklist", key="worklist_submit"):
+        try:
+            st.session_state.worklist_rows = worklist(20)
+        except Exception as error:
+            st.session_state.worklist_rows = None
+            st.error(f"Could not load worklist: {error}")
+    rows = st.session_state.get("worklist_rows")
+    if rows is not None:
+        st.dataframe([{
+            "Promise ID": row["ptp_id"],
+            "Golden customer ID": row["customer_id"],
+            "Case ID": row["case_id"],
+            "Break risk": row["probability_break"],
+            "Top reason": row["top_reason"],
+            "Model version": row["model_version"],
+        } for row in rows], width="stretch", hide_index=True)
+        st.caption(f"{len(rows)} ranked promises shown. This is a review queue, not an action list.")
