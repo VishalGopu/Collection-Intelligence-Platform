@@ -22,6 +22,9 @@ def main() -> None:
         card = engine.answer(args.question)
         print(card.answer)
         print(f"\nEvidence ({card.mode}):\n{card.sql_or_sources}")
+        print(f"Data date: {card.as_of_date}")
+        if card.metric_definition:
+            print(f"Metric definition: {card.metric_definition}")
         print(f"Refused: {str(card.refused).lower()}")
     else:
         cards = engine.run_benchmark(args.benchmark, args.split)

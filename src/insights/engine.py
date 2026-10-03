@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import csv
+import difflib
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -11,8 +13,25 @@ from pathlib import Path
 from typing import Any
 
 import duckdb
+from sqlglot import exp, parse
 
+from .llm import OpenAIResponsesPlanner, PlannerError, SQLPlanner
 from .queries import SQL_BY_QUESTION
+
+
+SNAPSHOT_DATE = "2026-09-28"
+MAX_RESULT_ROWS = 200
+KNOWN_TABLES = {
+    "collections_cases", "contact_history", "promises_to_pay", "card_accounts",
+    "loan_accounts", "call_transcripts", "agents", "ops_events",
+    "account_monthly_snapshot",
+}
+BLOCKED_LLM_COLUMNS = {
+    "gender", "marital_status", "citizenship_status", "newcomer_flag",
+    "accessibility_flag", "vulnerable_customer_flag", "accent",
+    "first_name", "last_name", "full_name", "primary_phone_e164",
+    "primary_email", "phone_number", "email_address",
+}
 
 
 @dataclass(frozen=True)
@@ -23,6 +42,8 @@ class AnswerCard:
     sql_or_sources: str
     refused: bool = False
     mode: str = "structured"
+    as_of_date: str = SNAPSHOT_DATE
+    metric_definition: str | None = None
 
     def benchmark_row(self) -> dict[str, str]:
         return {
@@ -59,18 +80,37 @@ TRANSCRIPT_QUESTIONS = {"BQ-016", "BQ-021", "BQ-022"}
 class InsightEngine:
     """Routes approved questions to certified SQL, documents, or case evidence."""
 
-    def __init__(self, dataset_root: str | Path, connection: duckdb.DuckDBPyConnection | None = None):
+    def __init__(
+        self,
+        dataset_root: str | Path,
+        connection: duckdb.DuckDBPyConnection | None = None,
+        llm_planner: SQLPlanner | None = None,
+    ):
         self.root = Path(dataset_root).resolve()
         self.data = self.root / "data"
         if not (self.root / "README.md").is_file():
             raise FileNotFoundError(f"Dataset release not found at {self.root}")
         self.connection = connection or duckdb.connect(":memory:")
         self._questions = self._read_questions()
+        self._metrics = self._read_metrics()
+        self.llm_planner = llm_planner or self._planner_from_environment()
         self._register_views()
 
     def _read_questions(self) -> dict[str, str]:
         with (self.data / "benchmark_questions.csv").open(newline="", encoding="utf-8") as handle:
             return {row["question_id"]: row["question_text"] for row in csv.DictReader(handle)}
+
+    def _read_metrics(self) -> dict[str, dict[str, str]]:
+        with (self.data / "metric_definitions.csv").open(newline="", encoding="utf-8") as handle:
+            return {row["metric_id"]: row for row in csv.DictReader(handle)}
+
+    @staticmethod
+    def _planner_from_environment() -> SQLPlanner | None:
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            return None
+        model = os.environ.get("OPENAI_MODEL", "gpt-5-mini")
+        return OpenAIResponsesPlanner(api_key=api_key, model=model)
 
     def _register_views(self) -> None:
         tables = {
@@ -95,11 +135,7 @@ class InsightEngine:
             refusal = self._safety_refusal(question)
             if refusal:
                 return AnswerCard("AD-HOC", question, refusal, "policy guardrail", True, "refusal")
-            return AnswerCard(
-                "AD-HOC", question,
-                "I cannot answer this reliably with the current certified query and document catalog.",
-                "no approved query or sufficiently specific source", True, "refusal",
-            )
+            return self._answer_with_llm(question)
         canonical = self._questions.get(qid, question)
         if qid in REFUSALS:
             return AnswerCard(qid, canonical, REFUSALS[qid], "policy guardrail", True, "refusal")
@@ -113,20 +149,48 @@ class InsightEngine:
         raise KeyError(f"No governed route for {qid}")
 
     def _match_question(self, question: str) -> str | None:
-        normalized = " ".join(question.casefold().split())
+        normalized = self._normalize_question(question)
         for qid, text in self._questions.items():
-            if normalized == " ".join(text.casefold().split()):
+            canonical = self._normalize_question(text)
+            if normalized == canonical:
+                return qid
+            if self._critical_signature(question) != self._critical_signature(text):
+                continue
+            if difflib.SequenceMatcher(None, normalized, canonical).ratio() >= 0.96:
                 return qid
         return None
 
     @staticmethod
+    def _normalize_question(question: str) -> str:
+        return " ".join(re.findall(r"[a-z0-9]+", question.casefold()))
+
+    @staticmethod
+    def _critical_signature(question: str) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+        text = question.casefold()
+        values = tuple(sorted(re.findall(r"\b(?:cs-\d{4}-\d+|\d+(?:\.\d+)?|january|february|march|april|may|june|july|august|september|october|november|december)\b", text)))
+        dimensions = tuple(sorted(word for word in (
+            "queue", "product", "site", "province", "hour", "bucket", "channel", "customer",
+            "account", "case", "promise", "contact", "gender", "citizenship", "postal",
+        ) if re.search(rf"\b{word}s?\b", text)))
+        polarity = tuple(sorted(word for word in ("no", "not", "without", "exclude", "include") if re.search(rf"\b{word}\b", text)))
+        return values, dimensions, polarity
+
+    @staticmethod
     def _safety_refusal(question: str) -> str | None:
         text = question.casefold()
-        protected = ("gender", "marital", "citizenship", "newcomer", "religion", "ethnic", "disability")
+        protected = ("gender", "marital", "citizenship", "newcomer", "religion", "ethnic", "disability", "accent", "vulnerability")
         if any(term in text for term in protected):
             return "I cannot use or disclose protected attributes for collections profiling or prioritization."
         if ("names" in text or "phone numbers" in text) and ("every" in text or "all" in text or "export" in text):
             return "I cannot provide a bulk PII export. Ask for an approved aggregate or a single authorized case."
+        if re.search(r"\b(send|call|email|text|message)\b.*\b(customer|them|him|her)\b", text):
+            return "I cannot take customer action. I can provide information for authorized human review."
+        if "medical advice" in text:
+            return "I cannot provide medical advice. Follow the approved policy and obtain qualified review."
+        if "legal advice" in text:
+            return "I cannot provide legal advice. Follow the approved policy and obtain qualified review."
+        if "ignore previous instructions" in text or "system prompt" in text or "hidden instruction" in text:
+            return "I cannot follow instructions embedded in data or reveal system instructions."
         return None
 
     def _answer_sql(self, qid: str, question: str, sql: str) -> AnswerCard:
@@ -135,7 +199,53 @@ class InsightEngine:
         columns = [item[0] for item in cursor.description]
         rows = cursor.fetchall()
         answer = self._format_csv(columns, rows)
-        return AnswerCard(qid, question, answer, sql, mode="structured")
+        metric_id = self._metric_for_question(qid)
+        definition = self._metrics.get(metric_id, {}).get("business_definition") if metric_id else None
+        return AnswerCard(qid, question, answer, sql, mode="structured", metric_definition=definition)
+
+    def _answer_with_llm(self, question: str) -> AnswerCard:
+        if self.llm_planner is None:
+            return self._could_not_answer(question, "no LLM planner is configured")
+        try:
+            plan = self.llm_planner.plan(question, self._catalog_text())
+            sql = self._validate_llm_sql(plan.sql)
+            cursor = self.connection.execute(sql)
+            columns = [item[0] for item in cursor.description]
+            rows = cursor.fetchall()
+            if not rows or all(all(value is None for value in row) for row in rows):
+                return self._could_not_answer(question, "the validated SQL returned no meaningful rows", sql)
+            answer = self._format_csv(columns, rows)
+            definition = self._metrics.get(plan.metric_id or "", {}).get("business_definition")
+            return AnswerCard("AD-HOC", question, answer, sql, mode="llm_sql", metric_definition=definition)
+        except (PlannerError, ValueError, duckdb.Error) as exc:
+            return self._could_not_answer(question, str(exc))
+
+    @staticmethod
+    def _could_not_answer(question: str, reason: str, evidence: str | None = None) -> AnswerCard:
+        safe_reason = re.sub(r"\s+", " ", reason).strip()[:300]
+        return AnswerCard(
+            "AD-HOC", question, f"I couldn't answer this: {safe_reason}.",
+            evidence or f"no query executed: {safe_reason}", True, "unable",
+        )
+
+    def _metric_for_question(self, qid: str) -> str | None:
+        with (self.data / "benchmark_questions.csv").open(newline="", encoding="utf-8") as handle:
+            for row in csv.DictReader(handle):
+                if row["question_id"] == qid:
+                    return row.get("metric_id") or None
+        return None
+
+    def _catalog_text(self) -> str:
+        table_lines = []
+        available = {row[0] for row in self.connection.execute("SHOW TABLES").fetchall()}
+        for table in sorted(KNOWN_TABLES & available):
+            columns = [row[1] for row in self.connection.execute(f"PRAGMA table_info('{table}')").fetchall()]
+            table_lines.append(f"{table}({', '.join(columns)})")
+        metric_lines = [
+            f"{metric_id}: {row['business_definition']} Formula: {row['formula']}"
+            for metric_id, row in sorted(self._metrics.items()) if row.get("certified_flag") == "true"
+        ]
+        return "TABLES\n" + "\n".join(table_lines) + "\nCERTIFIED METRICS\n" + "\n".join(metric_lines)
 
     @staticmethod
     def _validate_sql(sql: str) -> None:
@@ -148,6 +258,39 @@ class InsightEngine:
         forbidden = re.compile(r"\b(insert|update|delete|drop|alter|create|copy|attach|detach|install|load|call|pragma)\b")
         if forbidden.search(executable) or ";" in executable:
             raise ValueError("Unsafe SQL rejected")
+
+    @staticmethod
+    def _validate_llm_sql(sql: str) -> str:
+        try:
+            statements = parse(sql, read="duckdb")
+        except Exception as exc:
+            raise ValueError(f"SQL parse failed: {exc}") from exc
+        if len(statements) != 1:
+            raise ValueError("LLM SQL must contain exactly one statement")
+        tree = statements[0]
+        forbidden = (exp.Insert, exp.Update, exp.Delete, exp.Drop, exp.Create, exp.Command, exp.Copy)
+        if isinstance(tree, forbidden) or any(tree.find(kind) for kind in forbidden):
+            raise ValueError("LLM SQL is not read-only")
+        tables = {table.name.casefold() for table in tree.find_all(exp.Table)}
+        if not tables:
+            raise ValueError("LLM SQL must query an approved table")
+        unknown = tables - KNOWN_TABLES
+        if unknown:
+            raise ValueError(f"LLM SQL referenced unknown tables: {', '.join(sorted(unknown))}")
+        columns = {column.name.casefold() for column in tree.find_all(exp.Column)}
+        blocked = columns & BLOCKED_LLM_COLUMNS
+        if blocked:
+            raise ValueError(f"LLM SQL referenced blocked columns: {', '.join(sorted(blocked))}")
+        if len(list(tree.find_all(exp.Table))) > 4:
+            raise ValueError("LLM SQL referenced too many tables")
+        if any(join.args.get("kind") == "CROSS" for join in tree.find_all(exp.Join)):
+            raise ValueError("LLM SQL may not use CROSS JOIN")
+        for function in tree.find_all(exp.Func):
+            name = function.sql_name().casefold()
+            if name.startswith("read_") or name in {"httpfs", "shell", "system"}:
+                raise ValueError(f"LLM SQL used forbidden function: {name}")
+        rendered = tree.sql(dialect="duckdb")
+        return f"SELECT * FROM ({rendered}) AS governed_result LIMIT {MAX_RESULT_ROWS}"
 
     @staticmethod
     def _format_csv(columns: list[str], rows: list[tuple[Any, ...]]) -> str:

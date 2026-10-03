@@ -8,6 +8,8 @@ Develop first against the release's read-only DuckDB views and benchmark files. 
 
 The local MVP uses deterministic routing and read-only DuckDB queries. Questions are routed to certified SQL, current policy/procedure documents, case-scoped transcripts, or a safety refusal. This keeps benchmark answers reproducible and makes the evidence visible without requiring an external LLM.
 
+Routing is deliberately strict. A released question ID always uses its governed route. Text-only routing requires an exact or near-exact match and rejects changed dates, numbers, case IDs, dimensions, or negation. Other safe questions use the optional LLM SQL planner; they never inherit a loosely matched canned answer.
+
 Install the module dependency from the repository root:
 
 ```bash
@@ -36,3 +38,17 @@ Run the unit tests with:
 ```bash
 .venv/bin/python -m pytest tests/insights
 ```
+
+Run the full development regression, including comparison with the published answers:
+
+```bash
+.venv/bin/python -m src.insights.regression
+```
+
+The report and generated answers are written below `local_artifacts/insights/regression/`.
+
+## Optional LLM SQL fallback
+
+Set `OPENAI_API_KEY` and, optionally, `OPENAI_MODEL` to enable unknown analytics questions. Without a key, unknown questions fail closed. The fallback uses structured output, retries transient failures up to three times, and caches successful plans in `local_artifacts/insights/llm_cache.json`.
+
+Every generated query is parsed before execution. It must be one read-only statement over approved views, cannot reference protected or direct-identifier columns, cannot call file/network readers, cannot use a cross join, and is wrapped in a 200-row output limit. Invalid SQL, execution errors, and empty results return `I couldn't answer this` with a reason; the system does not guess.
