@@ -93,7 +93,8 @@ def test_hardship_or_safeguard_routes_to_specialist(engine, support):
     assert recommendation['specialist_agent_id'] == 'AG-1'
     assert all(not recommendation['policy_checks'][a]['allowed'] for a in
                ('call', 'sms', 'email', 'push', 'payment_plan_discussion'))
-    assert 'vulnerability' not in recommendation['reasons'][0].lower()
+    assert recommendation['reasons'][0].startswith(
+        'hardship_flag' if support == 'hardship' else 'vulnerability_flag')
 
 
 def test_golden_and_crm_ids_produce_the_same_recommendation(engine):

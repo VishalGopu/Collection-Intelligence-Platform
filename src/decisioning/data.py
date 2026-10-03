@@ -254,6 +254,13 @@ class ReleaseAdapter:
         safeguard = (any_true(profiles, 'vulnerability_flag')
                      or any_true(cases, 'vulnerable_customer_flag')
                      or any_true(support, 'vulnerability_disclosed_flag'))
+        routing_trigger = next((label for rows, field, label in (
+            (cases, 'hardship_flag', 'collections_cases.hardship_flag'),
+            (support, 'hardship_mentioned_flag', 'contact_history.hardship_mentioned_flag'),
+            (profiles, 'vulnerability_flag', 'customers.vulnerability_flag'),
+            (cases, 'vulnerable_customer_flag', 'collections_cases.vulnerable_customer_flag'),
+            (support, 'vulnerability_disclosed_flag', 'contact_history.vulnerability_disclosed_flag'),
+        ) if any_true(rows, field)), None)
         if any_true(support, 'sms_opt_out_flag'):
             consent['sms'] = False
         if any_true(support, 'email_unsubscribe_flag'):
@@ -324,6 +331,7 @@ class ReleaseAdapter:
             time_zone=next(iter(zones)) if len(zones) == 1 else None,
             linked=self.has_c360, identity_needs_review=bool(golden and golden['dq_status'] != 'passed'),
             consent=consent, hardship=hardship, specialist_safeguard=safeguard,
+            routing_trigger=routing_trigger,
             holds=sorted(set(holds)),
             cease_contact=(any_true(profiles, 'cease_communication_flag') or
                            any_true(cases, 'cease_contact_flag') or any_true(support, 'cease_request_flag')),

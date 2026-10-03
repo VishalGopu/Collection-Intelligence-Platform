@@ -46,13 +46,19 @@ class RecommendationEngine:
             choices = rank_actions(evidence, broken, checks)
         choice = choices[0]
         reason = explain(choice, broken)
+        routing_reason = None
+        if choice['action'] == 'specialist_review':
+            trigger = context.routing_trigger or ('hardship_flag' if context.hardship else 'vulnerability_flag')
+            routing_reason = f'{trigger} triggered mandatory specialist review; normal collection actions are suppressed.'
+            reason = routing_reason
         model_result = None
         if self.model is not None and context.linked:
             features = self.adapter.model_features(context)
             if features:
                 model_result = self.model.score(features)
                 from .model import reason_sentence
-                reason = reason_sentence(model_result['shap_reasons'], choice['action'])
+                model_sentence = reason_sentence(model_result['shap_reasons'], choice['action'])
+                reason = (routing_reason + ' ' + model_sentence) if routing_reason else model_sentence
         if choice['action'] == 'wait':
             blocked = sorted({reason for c in checks.values() for reason in c['reasons']
                               if reason not in ('no_specialist_route_needed',)})
@@ -91,7 +97,9 @@ class RecommendationEngine:
             'score': choice['score'],
             'probabilities': {'promise_kept': None,
                 'observed_rpc_by_channel': {c: r['rpc_rate'] for c, r in evidence.items()}},
-            'policy_checks': checks, 'reasons': [reason], 'alternatives': choices[1:],
+            'policy_checks': checks,
+            'reasons': ([routing_reason, model_sentence] if routing_reason and model_result else [reason]),
+            'alternatives': choices[1:],
             'channel_evidence': evidence,
             'specialist_agent_id': context.specialist_agent_id if choice['action'] == 'specialist_review' else None,
             'shap_reasons': model_result['shap_reasons'] if model_result else [],

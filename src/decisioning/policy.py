@@ -24,6 +24,7 @@ class DecisionContext:
     hardship: bool = False
     # These are safeguards only; they never enter ranking or feature vectors.
     specialist_safeguard: bool = False
+    routing_trigger: str | None = None
     holds: list[str] = field(default_factory=list)
     cease_contact: bool = False
     representative: bool = False

@@ -19,6 +19,10 @@ def test_linked_hero_golden_and_crm_ids_receive_same_model_and_policy(tmp_path):
         crm = engine.recommend(golden['crm_customer_ids'][0])
         assert golden['customer_id'] == crm['customer_id']
         assert golden['action'] == crm['action'] == 'specialist_review'
+        assert golden['reasons'][0].startswith(('collections_cases.hardship_flag',
+               'contact_history.hardship_mentioned_flag', 'customers.vulnerability_flag',
+               'collections_cases.vulnerable_customer_flag',
+               'contact_history.vulnerability_disclosed_flag'))
         assert golden['promise_model_version'] == crm['promise_model_version'] == 'promise-kept-v2'
         assert len(golden['shap_reasons']) == len(crm['shap_reasons']) == 3
         assert golden['probabilities']['promise_kept'] == crm['probabilities']['promise_kept']
