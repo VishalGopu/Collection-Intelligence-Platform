@@ -1,0 +1,20 @@
+# Downloaded Maple Collections dataset (core and optional voice files)
+/maple_data/
+
+# Local Python environments and temporary package installs
+/.venv/
+/.tools/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local databases and credentials
+*.duckdb
+*.duckdb.wal
+.env
+.env.*
+
+# Generated text copies and one-off PDF extraction helper
+/build_phase.txt
+/HACKERS_SystemDesign.txt
+/extract_pdfs.py
