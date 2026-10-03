@@ -15,7 +15,7 @@ Counts can overlap because a case or customer can have more than one issue.
 | --- | ---: | --- |
 | CRM rows without DOB | 5,026 | Keep in C360; mark customer for review; never use DOB-based automatic source matching. |
 | CRM rows without postcode | 10,220 | Keep in C360; use DOB plus phone and surname only when unique, otherwise review. |
-| Golden customers needing profile review | 15,183 | Preserve the record and flag `dq_status = needs_review`. |
+| Golden customers needing profile review | 15,183 | One or more CRM records in the customer group lack a usable DOB or postcode. Preserve the customer and set `dq_status = needs_review`; missing evidence cannot justify an automatic source match. This is a customer count, separate from `review_pending` source links below. |
 | Cases with conflicting CRM and account identity | 583 | Quarantine from customer-level rollups and decisions. |
 | Cases without a published customer link | 1,386 | Exclude from customer-level rollups; retain for steward review. |
 | Cases with invalid overdue or DPD | 0 | Report for source correction; exclude invalid values from golden rollups. |

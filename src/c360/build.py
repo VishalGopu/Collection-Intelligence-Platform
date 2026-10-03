@@ -13,6 +13,8 @@ from pathlib import Path
 
 import duckdb
 
+from quality import validate_publication
+
 
 SNAPSHOT_DATE = "2026-09-28"
 
@@ -408,13 +410,7 @@ def main() -> None:
             FROM identity_crosswalk GROUP BY 1, 2 ORDER BY 1, 2
         """).fetchall()
     ]
-    if any(report[key] for key in (
-        "duplicate_golden_ids", "null_golden_ids", "duplicate_source_keys",
-        "orphan_linked_ids", "invalid_confidence", "invalid_overdue"
-    )):
-        raise RuntimeError(f"Publish quality gate failed: {report}")
-    if report["unresolved_case_refs"] / report["case_rows"] > 0.005:
-        raise RuntimeError(f"Case-resolution quality gate failed: {report}")
+    validate_publication(con, report)
 
     for table, filename in (
         ("crm_unique", "silver_customers.parquet"),
@@ -437,7 +433,7 @@ def main() -> None:
         "| Issue | Affected rows | Handling |", "| --- | ---: | --- |",
         f"| CRM rows without DOB | {report['crm_missing_dob']:,} | Keep in C360; mark customer for review; never use DOB-based automatic source matching. |",
         f"| CRM rows without postcode | {report['crm_missing_postal']:,} | Keep in C360; use DOB plus phone and surname only when unique, otherwise review. |",
-        f"| Golden customers needing profile review | {report['crm_needs_review']:,} | Preserve the record and flag `dq_status = needs_review`. |",
+        f"| Golden customers needing profile review | {report['crm_needs_review']:,} | One or more CRM records in the customer group lack a usable DOB or postcode. Preserve the customer and set `dq_status = needs_review`; missing evidence cannot justify an automatic source match. This is a customer count, separate from `review_pending` source links below. |",
         f"| Cases with conflicting CRM and account identity | {report['case_account_conflicts']:,} | Quarantine from customer-level rollups and decisions. |",
         f"| Cases without a published customer link | {report['unresolved_case_refs']:,} | Exclude from customer-level rollups; retain for steward review. |",
         f"| Cases with invalid overdue or DPD | {report['invalid_case_amounts']:,} | Report for source correction; exclude invalid values from golden rollups. |",

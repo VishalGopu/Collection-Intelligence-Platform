@@ -16,3 +16,13 @@ From the repository root:
 The build writes `golden_customers.parquet`, `identity_crosswalk.parquet`, two curated silver files, and quality reports under the ignored `local_artifacts/c360/` directory. The release's source files remain unchanged. Only links with confidence at least 0.95, a clear winner, and no conflicting profile are published as linked; other candidates require review or remain unlinked.
 
 Collections cases first use their copied CRM reference. If that reference is missing, the primary account can supply a customer link only when every case for that Collections reference agrees on the same linked customer. Conflicting CRM and account evidence stays in review. The build checks that at least 99.5% of case rows resolve and publishes the counts in `quality_report.md`.
+
+To inspect the source keys behind a published customer without displaying DOB, phone, postcode, or name:
+
+```powershell
+.\.venv\Scripts\python.exe src\c360\explain.py G-a68042b56cee36b677bd
+```
+
+The command shows each linked source key, match method, rule-based confidence, and which normalized identity fields agree. A CRM anchor and a Collections reference report their link method instead of raw identity fields. A `review_pending` source has no published golden ID and is intentionally absent from this lookup.
+
+Run the Layer 1 checks with `.\.venv\Scripts\python.exe -m pytest tests\c360 -q`. The tests cover invalid published links, protected columns, quality-gate failures, and the explanation output. If local Parquet outputs exist, the suite also verifies their row counts and identity invariants against the quality report.
