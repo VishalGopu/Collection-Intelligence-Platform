@@ -148,6 +148,10 @@ class RecommendationEngine:
             result['probabilities']['promise_kept'] = model_result['probability']
             result['limitations'][1] = (
                 'Promise-kept probability is observational and conditional on a promise; it is not action uplift.')
+        if hasattr(self.adapter, 'text_features'):
+            result['text_features'] = self.adapter.text_features(context)
+            result['limitations'].append(
+                'Precomputed text signals are context only; they cannot alone trigger an adverse action.')
         self.audit.save(result)
         return result
 

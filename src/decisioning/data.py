@@ -86,6 +86,8 @@ class ReleaseAdapter:
             self.connection = duckdb.connect(str(cache_path), read_only=True)
         self.connection.execute("SET memory_limit = '2GB'")
         self.has_c360 = (self.c360_dir / "identity_crosswalk.parquet").is_file()
+        self._text_index = None
+        self._text_annotations = None
         if self.has_c360:
             self._register_contract()
 
@@ -436,6 +438,20 @@ class ReleaseAdapter:
         }
         model_columns(result)
         return result
+
+    def text_features(self, context: DecisionContext) -> dict:
+        """Same timestamp and annotation definition as the training text table."""
+        from src.features.text import features_at, load_cache
+        from src.features.text_data import source_index
+        if self._text_annotations is None:
+            self._text_annotations = load_cache()
+        if not self._text_annotations:
+            return features_at([], utc_cutoff(context.as_of), {})
+        if self._text_index is None:
+            self._text_index = source_index(self.data_dir)
+        events = [event for crm_id in context.crm_ids
+                  for event in self._text_index.get(crm_id, [])]
+        return features_at(events, utc_cutoff(context.as_of), self._text_annotations)
 
     def close(self):
         self.connection.close()

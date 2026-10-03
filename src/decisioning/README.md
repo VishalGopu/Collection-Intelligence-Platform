@@ -303,6 +303,36 @@ ranking or explanation paths.
   support routing affect actions; no causal disparity or parity conclusion is
   warranted, and protected fields remain measurement-only.
 
+## Point-in-time text signals (API extraction pending)
+
+`src/features/text.py` defines `hardship_signal` (`none`, `possible`, `clear`)
+and `stated_delay_reason` once. Both the training text table builder and live
+`recommend()` call `features_at()`, which selects only a cached source before
+the promise or scoring time. Completed transcripts require a prior calendar
+day because their local/UTC alignment is uncertain. A parity test checks the
+same cutoff behavior. The separate `src/features/text_groq.py` wrapper reads
+`GROQ_API_KEY` from `.env`, extracts bounded batches, and writes
+`local_artifacts/decisioning/text_annotations.json`; it imports nothing from
+Layer 2. It refuses batches that cannot finish before 18:00 IST. The local
+cache is kept outside Git, and no API is called in the demo.
+
+The 500 public note labels and 500 transcript labels were loaded and prepared
+for evaluation. **Groq extraction has not run:** at implementation time it was
+after 18:00 IST and this workspace had no `.env` or `GROQ_API_KEY`. The
+committed `artifacts/text_public_evaluation.json` therefore reports 0/500
+evaluated for each source and null precision/recall. Do not cite text accuracy
+or claim populated text features until the shared key is available in an
+approved pre-18:00 window and the cache is rebuilt. Missing annotations yield
+unknown text features. Text signals are context only and cannot alone trigger
+adverse treatment or change the model/ranker.
+
+When the window and key are available, run `python -m src.features.text_public
+run`, then `python -m src.features.text_data` before the demo. The first command
+resumes from its separate cache after each successful batch; the second writes
+`local_artifacts/features/promise_text.parquet` with the same feature definition.
+Rerun the public evaluator and review its precision/recall before using any
+text result in a decision workflow.
+
 ## Committed evidence and remaining work
 
 `artifacts/thin_flow_metrics.json` records the real-data channel evidence,

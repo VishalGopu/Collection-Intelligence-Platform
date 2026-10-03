@@ -1,0 +1,45 @@
+{
+  "annotation_method": "Groq batch JSON extraction",
+  "status": "pending_api_extraction",
+  "no_result_means": "No Groq prediction; precision and recall are not estimable.",
+  "public_evaluation": {
+    "note": {
+      "public_labels": 500,
+      "evaluated": 0,
+      "hardship_clear_or_possible": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision": null,
+        "recall": null
+      },
+      "stated_delay_reason_present": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision": null,
+        "recall": null
+      },
+      "delay_reason_exact_accuracy": null
+    },
+    "transcript": {
+      "public_labels": 500,
+      "evaluated": 0,
+      "hardship_clear_or_possible": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision": null,
+        "recall": null
+      },
+      "stated_delay_reason_present": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision": null,
+        "recall": null
+      },
+      "delay_reason_exact_accuracy": null
+    }
+  }
+}
