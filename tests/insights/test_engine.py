@@ -229,3 +229,26 @@ def test_hour_normalization_does_not_hide_second_statement() -> None:
     sql = "SELECT HOUR(contact_ts_local) FROM contact_history; DROP TABLE contact_history"
     normalized = InsightEngine._normalize_contact_hour_sql("Calls by hour?", sql)
     assert normalized == sql
+
+
+def test_scoped_routes_require_both_linked_collections_and_crm_keys(fixture_root: Path, tmp_path: Path) -> None:
+    engine = bare_engine(fixture_root)
+    engine.c360_root = tmp_path
+    con = engine.connection
+    con.execute("CREATE TABLE collections_cases(case_id VARCHAR, coll_customer_ref VARCHAR, case_status VARCHAR, current_dpd INTEGER, total_overdue DOUBLE)")
+    con.execute("INSERT INTO collections_cases VALUES ('CS-2026-1','C1','open',75,100), ('CS-2026-2','C2','open',20,900)")
+    con.execute("CREATE TABLE contact_history(case_id VARCHAR, crm_customer_id VARCHAR, direction VARCHAR, channel VARCHAR, channel_v2 VARCHAR)")
+    con.execute("INSERT INTO contact_history VALUES ('CS-2026-1','R1','outbound','call','call'), ('CS-2026-1','R2','outbound','call','call')")
+    con.execute("CREATE TABLE promises_to_pay(case_id VARCHAR, crm_customer_id VARCHAR, ptp_status VARCHAR)")
+    con.execute("INSERT INTO promises_to_pay VALUES ('CS-2026-1','R1','broken'), ('CS-2026-1','R2','broken')")
+    con.execute("CREATE TABLE links(source_system VARCHAR, source_customer_id VARCHAR, golden_customer_id VARCHAR, link_status VARCHAR)")
+    con.execute("INSERT INTO links VALUES ('collections','C1','G-aaaaaaaaaaaaaaaaaaaa','linked'), ('collections','C2','G-aaaaaaaaaaaaaaaaaaaa','review_pending'), ('crm','R1','G-aaaaaaaaaaaaaaaaaaaa','linked'), ('crm','R2','G-aaaaaaaaaaaaaaaaaaaa','review_pending')")
+    con.execute(f"COPY links TO '{(tmp_path / 'identity_crosswalk.parquet').as_posix()}' (FORMAT PARQUET)")
+    scope = "G-aaaaaaaaaaaaaaaaaaaa"
+    assert "open_cases\n1" in engine.answer("How many open cases does this customer have?", scope=scope).answer
+    assert "open_overdue_balance_cad\n100.0" in engine.answer("What is this customer's overdue balance?", scope=scope).answer
+    assert "contact_count,outbound_calls\n1,1" in engine.answer("How many contacts did this customer have?", scope=scope).answer
+    assert "broken_promises,total_promises\n1,1" in engine.answer("How many broken promises does this customer have?", scope=scope).answer
+    assert "CS-2026-1" in engine.answer("What is the status of CS-2026-1?", scope=scope).answer
+    assert "CS-2026-2" not in engine.answer("What is the status of CS-2026-2?", scope=scope).answer
+    assert engine.answer("How many open cases does this customer have?", scope=scope).mode == "scoped_sql"

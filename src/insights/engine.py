@@ -94,9 +94,11 @@ class InsightEngine:
         connection: duckdb.DuckDBPyConnection | None = None,
         llm_planner: SQLPlanner | None = None,
         cache_database: str | Path | None = None,
+        c360_root: str | Path = "local_artifacts/c360",
     ):
         self.root = Path(dataset_root).resolve()
         self.data = self.root / "data"
+        self.c360_root = Path(c360_root).resolve()
         if not (self.root / "README.md").is_file():
             raise FileNotFoundError(f"Dataset release not found at {self.root}")
         self.connection = connection or duckdb.connect(str(cache_database) if cache_database else ":memory:")
@@ -166,7 +168,9 @@ class InsightEngine:
             f"SELECT * EXCLUDE (year) FROM read_parquet('{parquet}', hive_partitioning=true)"
         )
 
-    def answer(self, question: str, question_id: str | None = None) -> AnswerCard:
+    def answer(self, question: str, question_id: str | None = None, *, scope: str | None = None) -> AnswerCard:
+        if scope and self._is_customer_scoped_question(question):
+            return self._answer_scoped(question, scope, question_id)
         external_id = question_id if question_id and question_id not in self._questions else None
         qid = question_id if question_id in self._questions else self._match_question(question)
         if not qid:
@@ -191,6 +195,59 @@ class InsightEngine:
             card = self._answer_transcript(qid, canonical)
             return replace(card, question_id=external_id, question=question) if external_id else card
         raise KeyError(f"No governed route for {qid}")
+
+    @staticmethod
+    def _is_customer_scoped_question(question: str) -> bool:
+        text = question.casefold()
+        if re.search(r"\b(this customer|selected customer|this person|their (?:cases|contacts|promises|balance)|for this customer|for customer g-|cs-\d{4}-\d+)\b", text):
+            return True
+        if re.search(r"\b(by|per|each|across|compare|rate|percentage|share|average|mean|which)\b", text):
+            return False
+        return bool(re.search(r"\b(open cases|overdue balance|contacts|broken promises)\b", text))
+
+    def _answer_scoped(self, question: str, scope: str, question_id: str | None) -> AnswerCard:
+        if not re.fullmatch(r"G-[0-9a-f]{20}", scope):
+            raise ValueError("scope must be a published golden_customer_id")
+        refusal = self._safety_refusal(question)
+        if refusal:
+            return AnswerCard(question_id or "AD-HOC", question, refusal, "policy guardrail", True, "refusal")
+        crosswalk = self.c360_root / "identity_crosswalk.parquet"
+        if not crosswalk.is_file():
+            return self._could_not_answer(question, "C360 crosswalk is unavailable; run the Layer 1 build")
+        path = crosswalk.as_posix().replace("'", "''")
+        case_match = re.search(r"\bCS-\d{4}-\d+\b", question, re.IGNORECASE)
+        case_filter = f" AND c.case_id = '{case_match.group(0).upper()}'" if case_match else ""
+        cte = (
+            "WITH linked_cases AS ("
+            "SELECT c.* FROM collections_cases c JOIN "
+            f"read_parquet('{path}') x ON x.source_system = 'collections' "
+            "AND x.source_customer_id = c.coll_customer_ref "
+            f"AND x.golden_customer_id = '{scope}' AND x.link_status = 'linked'{case_filter}), "
+            "linked_contacts AS (SELECT h.* FROM contact_history h JOIN linked_cases c ON c.case_id = h.case_id "
+            f"JOIN read_parquet('{path}') x ON x.source_system = 'crm' "
+            "AND x.source_customer_id = h.crm_customer_id "
+            f"AND x.golden_customer_id = '{scope}' AND x.link_status = 'linked'), "
+            "linked_promises AS (SELECT p.* FROM promises_to_pay p JOIN linked_cases c ON c.case_id = p.case_id "
+            f"JOIN read_parquet('{path}') x ON x.source_system = 'crm' "
+            "AND x.source_customer_id = p.crm_customer_id "
+            f"AND x.golden_customer_id = '{scope}' AND x.link_status = 'linked') "
+        )
+        text = question.casefold()
+        if case_match and not any(word in text for word in ("contact", "promise")):
+            sql = cte + "SELECT case_id, case_status, current_dpd, round(total_overdue,2) AS overdue_balance_cad FROM linked_cases"
+        elif "contact" in text:
+            sql = cte + "SELECT count(*) AS contact_count, count(*) FILTER (WHERE direction='outbound' AND coalesce(channel_v2, channel)='call') AS outbound_calls FROM linked_contacts"
+        elif "promise" in text:
+            sql = cte + "SELECT count(*) FILTER (WHERE ptp_status='broken') AS broken_promises, count(*) AS total_promises FROM linked_promises"
+        elif "overdue" in text or "balance" in text:
+            sql = cte + "SELECT round(coalesce(sum(total_overdue),0),2) AS open_overdue_balance_cad FROM linked_cases WHERE case_status='open'"
+        elif "case" in text:
+            sql = cte + "SELECT count(*) AS open_cases FROM linked_cases WHERE case_status='open'"
+        else:
+            return self._could_not_answer(question, "no certified customer-scoped route matches this question")
+        cursor = self.connection.execute(sql)
+        answer = self._format_csv([item[0] for item in cursor.description], cursor.fetchall())
+        return AnswerCard(question_id or "AD-HOC", question, answer, sql, mode="scoped_sql")
 
     def _match_question(self, question: str) -> str | None:
         normalized = self._normalize_question(question)
