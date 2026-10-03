@@ -89,9 +89,10 @@ def build(data_dir: Path, c360_dir: Path, output_path: Path) -> dict:
                  WHEN dpd_at_creation < 30 THEN 0 WHEN dpd_at_creation < 60 THEN 1
                  WHEN dpd_at_creation < 90 THEN 2 ELSE 3 END AS dpd_bucket_at_creation
             FROM promise_events
-            WHERE ptp_status IN ('kept','broken')
-              AND status_ts >= promise_created_ts
-              AND status_ts <= TIMESTAMP '2026-09-28 23:59:59'
+            WHERE ((ptp_status IN ('kept','broken')
+                    AND status_ts >= promise_created_ts
+                    AND status_ts <= TIMESTAMP '2026-09-28 23:59:59')
+                   OR ptp_status='open')
               AND promise_created_ts IS NOT NULL AND ptp_id IS NOT NULL''')
         print('Promise outcomes staged', flush=True)
         con.execute(f'''CREATE OR REPLACE TABLE prior_contacts AS
@@ -189,9 +190,26 @@ def build(data_dir: Path, c360_dir: Path, output_path: Path) -> dict:
             FROM promises p JOIN prior_contacts contacts USING (ptp_id)
               JOIN prior_broken broken USING (ptp_id)
               JOIN card_at_promise card USING (ptp_id)
-              JOIN bureau_at_promise bureau USING (ptp_id)''')
+              JOIN bureau_at_promise bureau USING (ptp_id)
+            WHERE p.ptp_status IN ('kept','broken')''')
         validation = validate_frame(con)
         con.execute(f"COPY training_table TO {quote(output_path)} (FORMAT PARQUET, COMPRESSION ZSTD)")
+        con.execute('''CREATE OR REPLACE TABLE open_table AS SELECT
+            p.ptp_id,p.crm_customer_id,p.case_id,p.promise_created_ts,
+            p.dpd_at_creation,p.dpd_bucket_at_creation,p.overdue_at_creation,
+            p.prior_broken_ptp_count_at_creation,broken.broken_promises_90d,
+            contacts.recent_contacts_30d,contacts.recent_rpc_30d,
+            card.card_utilisation,bureau.bureau_risk_score,bureau.bureau_score_change,
+            contacts.latest_contact_ts,broken.latest_prior_broken_ts,
+            card.card_snapshot_date,bureau.bureau_pull_date,bureau.bureau_previous_pull_date
+            FROM promises p JOIN prior_contacts contacts USING(ptp_id)
+            JOIN prior_broken broken USING(ptp_id)
+            JOIN card_at_promise card USING(ptp_id)
+            JOIN bureau_at_promise bureau USING(ptp_id)
+            WHERE p.ptp_status='open' AND p.promise_created_ts<=TIMESTAMP '2026-09-28 23:59:59' ''')
+        open_path = output_path.with_name('open_promise_features.parquet')
+        con.execute(f"COPY open_table TO {quote(open_path)} (FORMAT PARQUET, COMPRESSION ZSTD)")
+        validation['open_rows'] = con.execute('SELECT count(*) FROM open_table').fetchone()[0]
         return validation
     finally:
         con.close()

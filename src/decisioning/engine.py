@@ -6,6 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
+import numpy as np
+
 from src.features.contacts import channel_evidence, prior_broken_promises, time_band
 from .audit import AuditStore
 from .data import ReleaseAdapter
@@ -112,6 +114,57 @@ class RecommendationEngine:
                 'Promise-kept probability is observational and conditional on a promise; it is not action uplift.')
         self.audit.save(result)
         return result
+
+    def worklist(self, limit: int = 20) -> list[dict]:
+        """Linked open promises, highest predicted break risk first, at creation time."""
+        if not isinstance(limit, int) or limit < 1 or limit > 1000:
+            raise ValueError('limit must be an integer from 1 to 1000')
+        if self.model is None or not self.adapter.has_c360:
+            raise ValueError('A trained model and approved C360 crosswalk are required')
+        from src.features.training import quote
+        from .train import MODEL_COLUMNS
+        base = Path('local_artifacts/features/open_promise_features.parquet')
+        candidates = Path('local_artifacts/features/open_promise_candidates.parquet')
+        if not base.is_file() or not candidates.is_file():
+            raise FileNotFoundError('Build open promise features with src.features.training and src.features.candidates')
+        con = self.adapter.connection
+        frame = con.execute(f'''SELECT p.*, c.earlier_kept_rate,c.days_since_last_payroll,
+            x.golden_customer_id FROM read_parquet({quote(base)}) p
+            JOIN read_parquet({quote(candidates)}) c USING(ptp_id)
+            JOIN identity_crosswalk x ON x.source_system='crm'
+              AND x.link_status='linked' AND x.source_customer_id=p.crm_customer_id
+            ORDER BY p.ptp_id''').df()
+        if frame.empty:
+            return []
+        if frame.ptp_id.duplicated().any():
+            raise ValueError('Open promise identity is ambiguous')
+        source_dates = ['latest_contact_ts','latest_prior_broken_ts',
+                        'card_snapshot_date','bureau_pull_date','bureau_previous_pull_date']
+        for name in source_dates:
+            if ((frame[name].notna()) &
+                    (frame[name].astype('datetime64[ns]') >= frame.promise_created_ts.astype('datetime64[ns]'))).any():
+                raise ValueError(f'Future {name} in open promise features')
+        columns = list(MODEL_COLUMNS)
+        raw = frame[columns].astype(float)
+        filled = self.model.imputer.transform(raw)
+        risk = 1 - self.model.model.predict_proba(filled)[:, 1]
+        ranked = np.argsort(-risk, kind='stable')[:limit]
+        output = []
+        for index in ranked:
+            row = frame.iloc[int(index)]
+            values = {name: (None if np.isnan(raw.iloc[int(index)][name]) else
+                             float(raw.iloc[int(index)][name])) for name in columns}
+            scored = self.model.score(values)
+            output.append({
+                'ptp_id': row.ptp_id, 'customer_id': row.golden_customer_id,
+                'crm_customer_id': row.crm_customer_id, 'case_id': row.case_id,
+                'promise_created_ts': row.promise_created_ts.isoformat(),
+                'probability_break': round(1 - scored['probability'], 6),
+                'shap_reasons': scored['shap_reasons'],
+                'top_reason': scored['shap_reasons'][0]['label'],
+                'model_version': scored['model_version'],
+            })
+        return output
 
     def _review(self, decision_id, reviewer, reason, disposition, action=None):
         decision = self.audit.get(decision_id)
