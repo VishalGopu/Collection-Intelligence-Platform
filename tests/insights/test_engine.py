@@ -179,4 +179,13 @@ def test_llm_empty_result_returns_safe_non_answer(fixture_root: Path) -> None:
         fixture_root, "SELECT queue FROM collections_cases WHERE current_dpd > 1000"
     ).answer("An unknown analytics question")
     assert card.refused is True
-    assert "no meaningful rows" in card.answer
+    assert card.answer == "No rows matched."
+    assert card.sql_or_sources.startswith("SELECT")
+
+
+def test_llm_empty_result_preserves_sql_and_reports_no_rows(fixture_root: Path) -> None:
+    card = llm_engine(
+        fixture_root, "SELECT queue FROM collections_cases WHERE current_dpd > 1000"
+    ).answer("An unknown analytics question")
+    assert card.answer == "No rows matched."
+    assert "current_dpd > 1000" in card.sql_or_sources

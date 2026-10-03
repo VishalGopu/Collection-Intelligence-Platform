@@ -14,6 +14,7 @@ from typing import Any
 
 import duckdb
 from sqlglot import exp, parse
+from dotenv import load_dotenv
 
 from .llm import OpenAIResponsesPlanner, PlannerError, SQLPlanner
 from .queries import SQL_BY_QUESTION
@@ -106,11 +107,16 @@ class InsightEngine:
 
     @staticmethod
     def _planner_from_environment() -> SQLPlanner | None:
-        api_key = os.environ.get("OPENAI_API_KEY")
+        load_dotenv()
+        api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("GROQ_API_KEY") or os.environ.get("grok_api_key")
+        # Be tolerant of a common local `.env` typo: `KEY==value`.
+        if api_key:
+            api_key = api_key.lstrip("=").strip()
         if not api_key:
             return None
-        model = os.environ.get("OPENAI_MODEL", "gpt-5-mini")
-        return OpenAIResponsesPlanner(api_key=api_key, model=model)
+        if os.environ.get("GROQ_API_KEY") or os.environ.get("grok_api_key"):
+            return OpenAIResponsesPlanner(api_key=api_key, model=os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"), provider="groq")
+        return OpenAIResponsesPlanner(api_key=api_key, model=os.environ.get("OPENAI_MODEL", "gpt-5-mini"))
 
     def _register_views(self) -> None:
         tables = {
@@ -213,7 +219,7 @@ class InsightEngine:
             columns = [item[0] for item in cursor.description]
             rows = cursor.fetchall()
             if not rows or all(all(value is None for value in row) for row in rows):
-                return self._could_not_answer(question, "the validated SQL returned no meaningful rows", sql)
+                return AnswerCard("AD-HOC", question, "No rows matched.", sql, True, "empty")
             answer = self._format_csv(columns, rows)
             definition = self._metrics.get(plan.metric_id or "", {}).get("business_definition")
             return AnswerCard("AD-HOC", question, answer, sql, mode="llm_sql", metric_definition=definition)

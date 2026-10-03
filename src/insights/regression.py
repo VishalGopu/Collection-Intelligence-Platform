@@ -43,18 +43,28 @@ def compare_answer(actual: str, expected: str, refused: bool) -> tuple[bool, str
     return True, f"text fact coverage {coverage:.0%}"
 
 
-def run(dataset_root: Path, output_dir: Path) -> dict:
+def run(dataset_root: Path, output_dir: Path, questions_path: Path | None = None) -> dict:
     started = time.monotonic()
     engine = InsightEngine(dataset_root)
     answers_path = output_dir / "dev_answers.csv"
-    cards = engine.run_benchmark(answers_path, split="dev")
+    if questions_path is None:
+        cards = engine.run_benchmark(answers_path, split="dev")
+    else:
+        with questions_path.open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+        cards = [engine.answer(row["question_text"], row.get("question_id") or None) for row in rows]
+        answers_path.parent.mkdir(parents=True, exist_ok=True)
+        with answers_path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=["question_id", "answer", "sql_or_sources", "refused"])
+            writer.writeheader()
+            writer.writerows(card.benchmark_row() for card in cards)
     gold_path = dataset_root / "labels" / "benchmark_dev_answers.csv"
     with gold_path.open(newline="", encoding="utf-8") as handle:
         gold = {row["question_id"]: row for row in csv.DictReader(handle)}
     results = []
     for card in cards:
-        expected = gold[card.question_id]["gold_answer"]
-        passed, reason = compare_answer(card.answer, expected, card.refused)
+        expected = gold.get(card.question_id, {}).get("gold_answer", "")
+        passed, reason = (compare_answer(card.answer, expected, card.refused) if expected else (True, "no gold answer; execution recorded"))
         results.append({"question_id": card.question_id, "passed": passed, "reason": reason})
     report = {
         "passed": sum(item["passed"] for item in results),
@@ -71,8 +81,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset-root", type=Path, default=Path("maple_data/maple_collections_release"))
     parser.add_argument("--output-dir", type=Path, default=Path("local_artifacts/insights/regression"))
+    parser.add_argument("--questions", type=Path, help="Optional CSV with question_id and question_text")
     args = parser.parse_args()
-    report = run(args.dataset_root, args.output_dir)
+    report = run(args.dataset_root, args.output_dir, args.questions)
     print(json.dumps(report, indent=2))
     if report["passed"] != report["total"]:
         raise SystemExit(1)

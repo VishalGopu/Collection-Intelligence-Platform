@@ -51,4 +51,6 @@ The report and generated answers are written below `local_artifacts/insights/reg
 
 Set `OPENAI_API_KEY` and, optionally, `OPENAI_MODEL` to enable unknown analytics questions. Without a key, unknown questions fail closed. The fallback uses structured output, retries transient failures up to three times, and caches successful plans in `local_artifacts/insights/llm_cache.json`.
 
-Every generated query is parsed before execution. It must be one read-only statement over approved views, cannot reference protected or direct-identifier columns, cannot call file/network readers, cannot use a cross join, and is wrapped in a 200-row output limit. Invalid SQL, execution errors, and empty results return `I couldn't answer this` with a reason; the system does not guess.
+Every generated query is parsed before execution. It must be one read-only statement over approved views, cannot reference protected or direct-identifier columns, cannot call file/network readers, cannot use a cross join, and is wrapped in a 200-row output limit. Invalid SQL and execution errors return `I couldn't answer this` with a reason; an empty result returns `No rows matched.` with the validated SQL. The system does not guess.
+
+AI tools used: OpenAI API-compatible structured SQL planning through the configured Groq-compatible endpoint, with deterministic DuckDB execution and local safety validation. No API key or response cache is committed.

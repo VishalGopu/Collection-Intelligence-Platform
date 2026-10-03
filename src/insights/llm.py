@@ -30,12 +30,14 @@ class PlannerError(RuntimeError):
 class OpenAIResponsesPlanner:
     """Small Responses API client with durable caching and bounded retries."""
 
-    endpoint = "https://api.openai.com/v1/responses"
+    prompt_version = "layer2-sql-v2"
 
     def __init__(
         self,
         api_key: str,
         model: str,
+        provider: str = "openai",
+        endpoint: str | None = None,
         cache_path: str | Path = "local_artifacts/insights/llm_cache.json",
         max_attempts: int = 3,
         timeout_seconds: int = 45,
@@ -46,6 +48,8 @@ class OpenAIResponsesPlanner:
             raise ValueError("An API key is required")
         self.api_key = api_key
         self.model = model
+        self.provider = provider
+        self.endpoint = endpoint or ("https://api.groq.com/openai/v1/chat/completions" if provider == "groq" else "https://api.openai.com/v1/responses")
         self.cache_path = Path(cache_path)
         self.max_attempts = max_attempts
         self.timeout_seconds = timeout_seconds
@@ -54,15 +58,23 @@ class OpenAIResponsesPlanner:
 
     def plan(self, question: str, catalog: str) -> SQLPlan:
         prompt = self._prompt(question, catalog)
-        key = hashlib.sha256(f"{self.model}\n{prompt}".encode()).hexdigest()
+        key = hashlib.sha256(f"{self.provider}\n{self.model}\n{self.prompt_version}\n{prompt}".encode()).hexdigest()
         cache = self._read_cache()
         if key in cache:
             return self._decode_plan(cache[key])
 
-        payload = {
-            "model": self.model,
-            "input": prompt,
-            "text": {
+        payload = {"model": self.model}
+        if self.provider == "groq":
+            payload.update({
+                "messages": [
+                    {"role": "system", "content": "Return only a JSON object with keys sql and metric_id."},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0,
+                "response_format": {"type": "json_object"},
+            })
+        else:
+            payload.update({"input": prompt, "text": {
                 "format": {
                     "type": "json_schema",
                     "name": "sql_plan",
@@ -77,8 +89,7 @@ class OpenAIResponsesPlanner:
                         "additionalProperties": False,
                     },
                 }
-            },
-        }
+            }})
         body = json.dumps(payload).encode()
         last_error: Exception | None = None
         for attempt in range(1, self.max_attempts + 1):
@@ -121,6 +132,11 @@ class OpenAIResponsesPlanner:
     def _output_text(result: dict) -> str:
         if isinstance(result.get("output_text"), str):
             return result["output_text"]
+        choices = result.get("choices", [])
+        if choices:
+            content = choices[0].get("message", {}).get("content")
+            if isinstance(content, str):
+                return content
         for item in result.get("output", []):
             for content in item.get("content", []):
                 if isinstance(content.get("text"), str):
