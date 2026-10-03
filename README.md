@@ -14,6 +14,6 @@ Hackathon build for a golden customer view (C360), grounded collections question
 | `local_artifacts/` | Generated local files, ignored by Git |
 | `submission/` | Final artifacts to commit for judging |
 
-See [the parallel workflow](docs/PARALLEL_WORKFLOW.md) for branch ownership and integration steps. Each laptop downloads the dataset locally using [the dataset guide](docs/DATASET_DOWNLOAD.md). The dataset and virtual environment are not committed.
+See [the parallel workflow](docs/PARALLEL_WORKFLOW.md) for folder ownership and integration steps. Each laptop downloads the dataset locally using [the dataset guide](docs/DATASET_DOWNLOAD.md). The dataset and virtual environment are not committed.
 
 The build-phase requirements are in `build_phase.pdf`; the proposed architecture is in `HACKERS_SystemDesign.pdf`.
