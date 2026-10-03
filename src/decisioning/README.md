@@ -318,6 +318,9 @@ broken rates are 0.630 versus 0.610. Those differences are descriptive. The
 broken rate rose from 35.7% in pre-July training to 62.5% in this linked test
 cohort, a material drift that limits calibration and group comparisons.
 
+The supported presentation claims and pilot evidence requirements are listed
+in `docs/TASK_A_DECK_CLAIMS.md`.
+
 ## Point-in-time text signals (API extraction pending)
 
 `src/features/text.py` defines `hardship_signal` (`none`, `possible`, `clear`)
