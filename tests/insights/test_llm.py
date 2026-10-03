@@ -42,6 +42,24 @@ def test_response_cache_avoids_second_api_call(tmp_path) -> None:
     assert planner.cache_hits == 1
 
 
+def test_cache_can_be_disabled_without_read_or_write(tmp_path) -> None:
+    calls = []
+
+    def opener(*args, **kwargs):
+        calls.append(1)
+        return response("SELECT count(*) FROM collections_cases")
+
+    path = tmp_path / "cache.json"
+    planner = OpenAIResponsesPlanner(
+        "test-key", "test-model", cache_path=path, opener=opener, cache_enabled=False
+    )
+    planner.plan("How many cases?", "collections_cases(case_id)")
+    planner.plan("How many cases?", "collections_cases(case_id)")
+    assert len(calls) == 2
+    assert planner.cache_hits == 0
+    assert not path.exists()
+
+
 def test_transient_failures_are_retried(tmp_path) -> None:
     attempts = []
     sleeps = []

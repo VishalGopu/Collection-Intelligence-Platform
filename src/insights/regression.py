@@ -44,12 +44,27 @@ def compare_answer(actual: str, expected: str, refused: bool) -> tuple[bool, str
     return True, f"text fact coverage {coverage:.0%}"
 
 
-def run(dataset_root: Path, output_dir: Path, questions_path: Path | None = None, workload_60: bool = False) -> dict:
+def read_questions(path: Path) -> list[dict[str, str]]:
+    with path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.reader(handle))
+    if not rows:
+        return []
+    if rows[0][:2] == ["question_id", "question_text"]:
+        return [dict(zip(rows[0], row)) for row in rows[1:]]
+    if any(len(row) < 2 for row in rows):
+        raise ValueError(f"Expected ID and question text in {path}")
+    return [{"question_id": row[0], "question_text": row[1]} for row in rows]
+
+
+def run(dataset_root: Path, output_dir: Path, questions_path: Path | None = None, workload_60: bool = False,
+        additional_questions: Path | None = None, no_llm_cache: bool = False) -> dict:
     started = time.monotonic()
     output_dir.mkdir(parents=True, exist_ok=True)
     cache_database = output_dir.parent / "regression" / "query_cache.duckdb" if workload_60 else output_dir / "query_cache.duckdb"
     cache_database.parent.mkdir(parents=True, exist_ok=True)
     engine = InsightEngine(dataset_root, cache_database=cache_database)
+    if no_llm_cache and engine.llm_planner is not None:
+        engine.llm_planner.cache_enabled = False
     setup_seconds = time.monotonic() - started
     answers_path = output_dir / ("custom_answers.csv" if questions_path else "dev_answers.csv")
     profiles = []
@@ -57,8 +72,12 @@ def run(dataset_root: Path, output_dir: Path, questions_path: Path | None = None
         cards = engine.run_benchmark(answers_path, split="dev")
     else:
         source = questions_path or Path("tests/insights/new_questions.csv")
-        with source.open(newline="", encoding="utf-8") as handle:
-            rows = list(csv.DictReader(handle))
+        rows = read_questions(source)
+        if additional_questions:
+            rows.extend(read_questions(additional_questions))
+            ids = [row["question_id"] for row in rows]
+            if len(ids) != len(set(ids)):
+                raise ValueError("Question IDs must be unique across both CSV files")
         if workload_60:
             with (dataset_root / "data" / "benchmark_questions.csv").open(newline="", encoding="utf-8") as handle:
                 released = list(csv.DictReader(handle))
@@ -122,6 +141,7 @@ def run(dataset_root: Path, output_dir: Path, questions_path: Path | None = None
         "duckdb_seconds": round(engine.query_seconds, 2),
         "api_calls": getattr(engine.llm_planner, "api_calls", 0),
         "cache_hits": getattr(engine.llm_planner, "cache_hits", 0),
+        "llm_cache_enabled": not no_llm_cache,
         "retry_count": getattr(engine.llm_planner, "retry_count", 0),
         "rate_limit_count": getattr(engine.llm_planner, "rate_limit_count", 0),
         "rate_limit_wait_count": getattr(engine.llm_planner, "rate_limit_wait_count", 0),
@@ -163,9 +183,12 @@ def main() -> None:
     parser.add_argument("--dataset-root", type=Path, default=Path("maple_data/maple_collections_release"))
     parser.add_argument("--output-dir", type=Path, default=Path("local_artifacts/insights/regression"))
     parser.add_argument("--questions", type=Path, help="Optional CSV with question_id and question_text")
+    parser.add_argument("--additional-questions", type=Path, help="Append a second CSV, preserving row order")
+    parser.add_argument("--no-llm-cache", action="store_true", help="Disable LLM cache reads and writes")
     parser.add_argument("--workload-60", action="store_true", help="Run 24 new plus 35 released questions and one new queue question")
     args = parser.parse_args()
-    report = run(args.dataset_root, args.output_dir, args.questions, args.workload_60)
+    report = run(args.dataset_root, args.output_dir, args.questions, args.workload_60,
+                 args.additional_questions, args.no_llm_cache)
     print(json.dumps(report, indent=2))
     if report["passed"] != report["total"]:
         raise SystemExit(1)

@@ -48,6 +48,7 @@ class OpenAIResponsesPlanner:
         opener: Callable[..., object] | None = None,
         sleeper: Callable[[float], None] = time.sleep,
         fallback_model: str | None = None,
+        cache_enabled: bool = True,
     ):
         if not api_key:
             raise ValueError("An API key is required")
@@ -57,6 +58,7 @@ class OpenAIResponsesPlanner:
         self.provider = provider
         self.endpoint = endpoint or ("https://api.groq.com/openai/v1/chat/completions" if provider == "groq" else "https://api.openai.com/v1/responses")
         self.cache_path = Path(cache_path)
+        self.cache_enabled = cache_enabled
         self.max_attempts = max_attempts
         self.timeout_seconds = timeout_seconds
         self.opener = opener or (self._curl_open if provider == "groq" else urlopen)
@@ -117,7 +119,7 @@ class OpenAIResponsesPlanner:
         self.last_api_seconds = 0.0
         self.last_cache_hit = False
         key = hashlib.sha256(f"{self.provider}\n{self.model}\n{self.fallback_model}\n{self.prompt_version}\n{prompt}".encode()).hexdigest()
-        cache = self._read_cache()
+        cache = self._read_cache() if self.cache_enabled else {}
         if key in cache:
             self.cache_hits += 1
             self.last_cache_hit = True
@@ -175,8 +177,9 @@ class OpenAIResponsesPlanner:
                 self.last_model = model
                 raw_plan = self._output_text(result)
                 plan = self._decode_plan(raw_plan)
-                cache[key] = raw_plan
-                self._write_cache(cache)
+                if self.cache_enabled:
+                    cache[key] = raw_plan
+                    self._write_cache(cache)
                 return plan
             except HTTPError as exc:
                 if not api_counted:
