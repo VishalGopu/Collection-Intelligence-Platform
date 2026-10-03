@@ -46,7 +46,7 @@ def compare_answer(actual: str, expected: str, refused: bool) -> tuple[bool, str
 def run(dataset_root: Path, output_dir: Path, questions_path: Path | None = None) -> dict:
     started = time.monotonic()
     engine = InsightEngine(dataset_root)
-    answers_path = output_dir / "dev_answers.csv"
+    answers_path = output_dir / ("custom_answers.csv" if questions_path else "dev_answers.csv")
     if questions_path is None:
         cards = engine.run_benchmark(answers_path, split="dev")
     else:
@@ -64,12 +64,18 @@ def run(dataset_root: Path, output_dir: Path, questions_path: Path | None = None
     results = []
     for card in cards:
         expected = gold.get(card.question_id, {}).get("gold_answer", "")
-        passed, reason = (compare_answer(card.answer, expected, card.refused) if expected else (True, "no gold answer; execution recorded"))
-        results.append({"question_id": card.question_id, "passed": passed, "reason": reason})
+        if expected:
+            passed, reason = compare_answer(card.answer, expected, card.refused)
+        else:
+            passed = card.mode not in {"unable"}
+            reason = "no gold answer; execution recorded" if passed else "question was not answered"
+        results.append({"question_id": card.question_id, "passed": passed, "reason": reason, "mode": card.mode})
     report = {
         "passed": sum(item["passed"] for item in results),
         "total": len(results),
         "elapsed_seconds": round(time.monotonic() - started, 2),
+        "api_calls": getattr(engine.llm_planner, "api_calls", 0),
+        "cache_hits": getattr(engine.llm_planner, "cache_hits", 0),
         "results": results,
     }
     output_dir.mkdir(parents=True, exist_ok=True)

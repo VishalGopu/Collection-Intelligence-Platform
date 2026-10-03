@@ -38,6 +38,12 @@ def test_out_of_scope_question_is_refused(fixture_root: Path) -> None:
     assert card.mode == "refusal"
 
 
+def test_new_question_id_is_preserved_when_text_matches_governed_route(fixture_root: Path) -> None:
+    card = bare_engine(fixture_root).answer("What will the weather be in Toronto tomorrow?", "NEW-023")
+    assert card.question_id == "NEW-023"
+    assert card.refused is True
+
+
 def test_protected_attribute_ad_hoc_question_is_refused(fixture_root: Path) -> None:
     card = bare_engine(fixture_root).answer("Rank customers by citizenship")
     assert card.refused is True
@@ -161,6 +167,8 @@ def test_unknown_question_uses_validated_llm_sql(fixture_root: Path) -> None:
     [
         "DELETE FROM collections_cases",
         "SELECT * FROM unknown_table",
+        "SELECT * FROM collections_cases",
+        "SELECT case_id FROM collections_cases",
         "SELECT gender FROM collections_cases",
         "SELECT 1",
         "SELECT * FROM read_csv('/tmp/secret.csv')",
@@ -178,9 +186,10 @@ def test_llm_empty_result_returns_safe_non_answer(fixture_root: Path) -> None:
     card = llm_engine(
         fixture_root, "SELECT queue FROM collections_cases WHERE current_dpd > 1000"
     ).answer("An unknown analytics question")
-    assert card.refused is True
+    assert card.refused is False
     assert card.answer == "No rows matched."
     assert card.sql_or_sources.startswith("SELECT")
+    assert card.refused is False
 
 
 def test_llm_empty_result_preserves_sql_and_reports_no_rows(fixture_root: Path) -> None:

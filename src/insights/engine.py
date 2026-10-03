@@ -7,7 +7,7 @@ import difflib
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -33,6 +33,12 @@ BLOCKED_LLM_COLUMNS = {
     "first_name", "last_name", "full_name", "primary_phone_e164",
     "primary_email", "phone_number", "email_address",
 }
+SENSITIVE_COLUMN_PARTS = (
+    "gender", "marital", "citizenship", "newcomer", "accessibility", "vulnerab",
+    "accent", "date_of_birth", "dob", "phone", "email", "first_name", "last_name",
+    "full_name", "national_id", "address", "postal", "sin_", "ssn_",
+)
+DIRECT_ID_COLUMNS = {"crm_customer_id", "src_customer_ref", "source_customer_id", "coll_customer_ref", "customer_id", "case_id", "contact_id", "ptp_id", "agent_id"}
 
 
 @dataclass(frozen=True)
@@ -108,13 +114,15 @@ class InsightEngine:
     @staticmethod
     def _planner_from_environment() -> SQLPlanner | None:
         load_dotenv()
-        api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("GROQ_API_KEY") or os.environ.get("grok_api_key")
+        openai_key = os.environ.get("OPENAI_API_KEY")
+        groq_key = os.environ.get("GROQ_API_KEY") or os.environ.get("grok_api_key")
+        api_key = openai_key or groq_key
         # Be tolerant of a common local `.env` typo: `KEY==value`.
         if api_key:
             api_key = api_key.lstrip("=").strip()
         if not api_key:
             return None
-        if os.environ.get("GROQ_API_KEY") or os.environ.get("grok_api_key"):
+        if not openai_key:
             return OpenAIResponsesPlanner(api_key=api_key, model=os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"), provider="groq")
         return OpenAIResponsesPlanner(api_key=api_key, model=os.environ.get("OPENAI_MODEL", "gpt-5-mini"))
 
@@ -136,22 +144,29 @@ class InsightEngine:
         )
 
     def answer(self, question: str, question_id: str | None = None) -> AnswerCard:
-        qid = question_id or self._match_question(question)
+        external_id = question_id if question_id and question_id not in self._questions else None
+        qid = question_id if question_id in self._questions else self._match_question(question)
         if not qid:
             refusal = self._safety_refusal(question)
             if refusal:
-                return AnswerCard("AD-HOC", question, refusal, "policy guardrail", True, "refusal")
-            return self._answer_with_llm(question)
+                card = AnswerCard("AD-HOC", question, refusal, "policy guardrail", True, "refusal")
+            else:
+                card = self._answer_with_llm(question)
+            return replace(card, question_id=external_id) if external_id else card
         canonical = self._questions.get(qid, question)
         if qid in REFUSALS:
-            return AnswerCard(qid, canonical, REFUSALS[qid], "policy guardrail", True, "refusal")
+            card = AnswerCard(qid, canonical, REFUSALS[qid], "policy guardrail", True, "refusal")
+            return replace(card, question_id=external_id, question=question) if external_id else card
         if qid in SQL_BY_QUESTION:
-            return self._answer_sql(qid, canonical, SQL_BY_QUESTION[qid])
+            card = self._answer_sql(qid, canonical, SQL_BY_QUESTION[qid])
+            return replace(card, question_id=external_id, question=question) if external_id else card
         if qid in DOCUMENT_ANSWERS:
             answer, sources = DOCUMENT_ANSWERS[qid]
-            return AnswerCard(qid, canonical, answer, json.dumps(sources), mode="document")
+            card = AnswerCard(qid, canonical, answer, json.dumps(sources), mode="document")
+            return replace(card, question_id=external_id, question=question) if external_id else card
         if qid in TRANSCRIPT_QUESTIONS:
-            return self._answer_transcript(qid, canonical)
+            card = self._answer_transcript(qid, canonical)
+            return replace(card, question_id=external_id, question=question) if external_id else card
         raise KeyError(f"No governed route for {qid}")
 
     def _match_question(self, question: str) -> str | None:
@@ -187,7 +202,7 @@ class InsightEngine:
         protected = ("gender", "marital", "citizenship", "newcomer", "religion", "ethnic", "disability", "accent", "vulnerability")
         if any(term in text for term in protected):
             return "I cannot use or disclose protected attributes for collections profiling or prioritization."
-        if ("names" in text or "phone numbers" in text) and ("every" in text or "all" in text or "export" in text):
+        if any(term in text for term in ("names", "phone numbers", "email address", "addresses")) and any(term in text for term in ("every", "all", "export")):
             return "I cannot provide a bulk PII export. Ask for an approved aggregate or a single authorized case."
         if re.search(r"\b(send|call|email|text|message)\b.*\b(customer|them|him|her)\b", text):
             return "I cannot take customer action. I can provide information for authorized human review."
@@ -197,6 +212,8 @@ class InsightEngine:
             return "I cannot provide legal advice. Follow the approved policy and obtain qualified review."
         if "ignore previous instructions" in text or "system prompt" in text or "hidden instruction" in text:
             return "I cannot follow instructions embedded in data or reveal system instructions."
+        if re.search(r"\b(weather|temperature|forecast|sports score|stock price|movie)\b", text):
+            return "I can only answer Maple Bank collections questions; this is outside scope."
         return None
 
     def _answer_sql(self, qid: str, question: str, sql: str) -> AnswerCard:
@@ -215,11 +232,19 @@ class InsightEngine:
         try:
             plan = self.llm_planner.plan(question, self._catalog_text())
             sql = self._validate_llm_sql(plan.sql)
+            if plan.metric_id:
+                metric = self._metrics.get(plan.metric_id)
+                if not metric or metric.get("certified_flag") != "true":
+                    raise ValueError(f"planner selected an uncertified metric: {plan.metric_id}")
+                sources = set(json.loads(metric.get("source_tables") or "[]"))
+                query_tables = {table.name.casefold() for table in parse(plan.sql, read="duckdb")[0].find_all(exp.Table)}
+                if sources and not sources.intersection(query_tables):
+                    raise ValueError(f"planner used the wrong tables for metric {plan.metric_id}")
             cursor = self.connection.execute(sql)
             columns = [item[0] for item in cursor.description]
             rows = cursor.fetchall()
             if not rows or all(all(value is None for value in row) for row in rows):
-                return AnswerCard("AD-HOC", question, "No rows matched.", sql, True, "empty")
+                return AnswerCard("AD-HOC", question, "No rows matched.", sql, False, "empty")
             answer = self._format_csv(columns, rows)
             definition = self._metrics.get(plan.metric_id or "", {}).get("business_definition")
             return AnswerCard("AD-HOC", question, answer, sql, mode="llm_sql", metric_definition=definition)
@@ -283,8 +308,14 @@ class InsightEngine:
         unknown = tables - KNOWN_TABLES
         if unknown:
             raise ValueError(f"LLM SQL referenced unknown tables: {', '.join(sorted(unknown))}")
+        if any(isinstance(item, exp.Star) or (isinstance(item, exp.Column) and item.is_star)
+               for select in tree.find_all(exp.Select) for item in select.expressions):
+            raise ValueError("LLM SQL may not project SELECT *")
+        if any(isinstance(item, exp.Column) and item.name.casefold() in DIRECT_ID_COLUMNS
+               for select in tree.find_all(exp.Select) for item in select.expressions):
+            raise ValueError("LLM SQL may not output direct identifiers")
         columns = {column.name.casefold() for column in tree.find_all(exp.Column)}
-        blocked = columns & BLOCKED_LLM_COLUMNS
+        blocked = {name for name in columns if name in BLOCKED_LLM_COLUMNS or any(part in name for part in SENSITIVE_COLUMN_PARTS)}
         if blocked:
             raise ValueError(f"LLM SQL referenced blocked columns: {', '.join(sorted(blocked))}")
         if len(list(tree.find_all(exp.Table))) > 4:

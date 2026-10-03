@@ -17,3 +17,8 @@ Hackathon build for a golden customer view (C360), grounded collections question
 See [the parallel workflow](docs/PARALLEL_WORKFLOW.md) for folder ownership and integration steps. Each laptop downloads the dataset locally using [the dataset guide](docs/DATASET_DOWNLOAD.md). The dataset and virtual environment are not committed.
 
 The build-phase requirements are in `build_phase.pdf`; the proposed architecture is in `HACKERS_SystemDesign.pdf`.
+
+## AI tools used (submission draft)
+
+- OpenAI API: optional structured SQL planning for new Layer 2 analytics questions. Generated SQL is validated and executed read-only in DuckDB; current live API validation is pending available account credits.
+- Codex: implementation, test creation, and development workflow assistance.

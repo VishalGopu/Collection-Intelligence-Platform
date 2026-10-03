@@ -45,7 +45,8 @@ KEYS = {
 }
 
 PROTECTED = ("gender", "marital", "citizenship", "household", "newcomer",
-             "accessibility", "vulnerability", "accent")
+             "accessibility", "vulnerab", "accent", "ethnic", "religion",
+             "disability")
 NEGATIVE_INVALID = re.compile(
     r"(^dpd$|_dpd$|^days_to_due_at_creation$|^days_late$|^duration_sec$|"
     r"_count$|_count_\w+$|^count_\w+$|^total_overdue$|"
