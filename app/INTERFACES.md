@@ -11,7 +11,7 @@ def answer(question: str, *, golden_customer_id: str) -> dict:
     """Return {answer, sql_or_sources, refused, mode, data_date}."""
 ```
 
-`src.insights.engine.InsightEngine(dataset_root).answer(question, question_id=None)` returns an `AnswerCard` with `answer`, `sql_or_sources`, `refused`, `mode`, `as_of_date`, and `metric_definition`. The app adapter verifies explicit case IDs against the selected customer's linked C360 cases. Existing Layer 2 SQL metrics remain global; customer-scoped analytical wording is refused until Layer 2 supports a golden-ID filter. The UI labels the scope, evidence, refusal, metric definition, and data date.
+`src.insights.engine.InsightEngine(dataset_root).answer(question, question_id=None)` returns an `AnswerCard` with `answer`, `sql_or_sources`, `refused`, `mode`, `as_of_date`, and `metric_definition`. The app adapter verifies explicit case IDs against the selected customer's linked C360 cases. When Layer 2 adds `answer(question, *, scope: str | None = None)`, the adapter passes the selected golden ID in `scope`; it also accepts a `golden_customer_id` keyword for compatibility. Until either exists, customer-scoped analytical wording is refused with a connection message, while global metrics remain labelled global. Layer 2 owns the scoped query semantics and must enforce linked C360 filtering. The UI labels the scope, evidence, refusal, metric definition, and data date.
 
 ## Recommendation tab — Decisioning team
 

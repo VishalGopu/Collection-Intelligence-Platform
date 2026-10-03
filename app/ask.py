@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import inspect
 from dataclasses import asdict
 from pathlib import Path
 
@@ -33,8 +34,8 @@ def answer(
 ) -> dict:
     """Answer general questions and case questions verified against the selected C360 ID.
 
-    Current Layer 2 SQL metrics remain global. This adapter never labels them as
-    customer-specific and refuses implicit customer-scoped wording.
+    Pass the selected golden ID as Layer 2 scope when its answer API supports it.
+    Until then, global metrics stay labelled global and customer wording refuses.
     """
     question = question.strip()
     if not question:
@@ -48,18 +49,31 @@ def answer(
     allowed_cases = {str(case_id).upper() for case_id in context["case_ids"]}
     if case_ids and not {case_id.upper() for case_id in case_ids} <= allowed_cases:
         return _refusal(question, "That case is not linked to the selected golden customer.")
-    if CUSTOMER_SCOPE.search(question) or golden_customer_id.casefold() in question.casefold():
+    customer_scoped = bool(CUSTOMER_SCOPE.search(question) or
+                           golden_customer_id.casefold() in question.casefold())
+    parameters = inspect.signature(InsightEngine.answer).parameters
+    if customer_scoped and "scope" not in parameters and "golden_customer_id" not in parameters:
         return _refusal(
             question,
-            "Customer-scoped analytical questions are not connected to C360 yet. "
-            "Ask a general Collections question or select a linked case question.",
+            "Customer-scoped Ask is waiting for Layer 2's golden-ID scope API. "
+            "General Collections and linked-case questions are available now.",
         )
     engine = InsightEngine(dataset_root)
     try:
-        card = engine.answer(question)
+        if "scope" in parameters:
+            card = engine.answer(question, scope=golden_customer_id)
+            scope_connected = True
+        elif "golden_customer_id" in parameters:
+            card = engine.answer(question, golden_customer_id=golden_customer_id)
+            scope_connected = True
+        else:
+            scope_connected = False
+            card = engine.answer(question)
     finally:
         engine.connection.close()
     result = asdict(card)
     result["data_date"] = result.pop("as_of_date")
-    result["scope"] = "selected linked case" if case_ids else "global Collections"
+    result["scope"] = ("selected linked case" if case_ids else
+                       "selected golden customer" if scope_connected and customer_scoped
+                       else "global Collections")
     return result
