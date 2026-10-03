@@ -96,7 +96,12 @@ def evaluate_public(labels: list[dict], annotations: dict[str, dict]) -> dict:
                 [value['stated_delay_reason'] is not None for _, value in matched]),
             'delay_reason_exact_accuracy': round(sum(
                 label['stated_delay_reason'] == value['stated_delay_reason']
-                for label, value in matched)/len(matched), 4) if matched else None}
+                for label, value in matched)/len(matched), 4) if matched else None,
+            'delay_reason_by_class': {reason: precision_recall(
+                [label['stated_delay_reason'] == reason for label, _ in matched],
+                [value['stated_delay_reason'] == reason for _, value in matched])
+                for reason in ('reduced_income', 'payroll_timing', 'forgot',
+                               'bank_error', 'travel', 'dispute', 'refuses', 'other')}}
     return output
 
 
