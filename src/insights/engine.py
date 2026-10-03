@@ -459,13 +459,15 @@ class InsightEngine:
             month = call_date.month + (day <= call_date.day)
             year = call_date.year + (month == 13)
             month = 1 if month == 13 else month
-            return datetime(year, month, day).strftime("%-d %b")
+            resolved = datetime(year, month, day)
+            return f"{resolved.day} {resolved:%b}"
         weekdays = {name.casefold(): index for index, name in enumerate(
             ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
         )}
         if value.casefold() in weekdays:
             days = (weekdays[value.casefold()] - call_date.weekday()) % 7 or 7
-            return (call_date + timedelta(days=days)).strftime("%-d %b")
+            resolved = call_date + timedelta(days=days)
+            return f"{resolved.day} {resolved:%b}"
         return value
 
     def run_benchmark(self, output_path: str | Path, split: str | None = None) -> list[AnswerCard]:
