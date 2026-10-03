@@ -48,17 +48,57 @@ def calibration(y, probability) -> dict:
             'expected_calibration_error': round(float(ece), 6), 'bins': bins}
 
 
+def broken_risk_lift(y, kept_probability) -> dict:
+    """Rank held-out promises by break risk; report actual broken capture."""
+    labels = np.asarray(y, dtype=int)
+    risk = 1 - np.asarray(kept_probability, dtype=float)
+    order = np.argsort(-risk, kind='stable')
+    broken = 1 - labels[order]
+    ranked_risk = risk[order]
+    total_broken = int(broken.sum())
+    base_rate = float(broken.mean())
+    deciles = []
+    for index in range(10):
+        start = index * len(broken) // 10
+        end = (index + 1) * len(broken) // 10
+        segment = broken[start:end]
+        count = len(segment)
+        segment_broken = int(segment.sum())
+        deciles.append({
+            'risk_rank_decile': index + 1, 'rows': count,
+            'mean_predicted_break_risk': round(float(ranked_risk[start:end].mean()), 6),
+            'observed_break_rate': round(segment_broken / count, 6),
+            'share_of_all_broken': round(segment_broken / total_broken, 6),
+            'lift_vs_test_break_rate': round((segment_broken / count) / base_rate, 6),
+        })
+    captured = {}
+    for share in (10, 20):
+        size = (len(broken) * share + 99) // 100
+        count = int(broken[:size].sum())
+        captured[f'top_{share}_percent'] = {
+            'rows': size, 'broken_promises': count,
+            'share_of_all_broken': round(count / total_broken, 6),
+            'lift_vs_test_break_rate': round((count / size) / base_rate, 6),
+        }
+    return {'riskiest_decile_first': deciles, 'capture': captured}
+
+
 def evaluate(y, probability) -> dict:
     if len(y) == 0:
         return {'rows': 0, 'metrics': None}
     probability = np.clip(np.asarray(probability, dtype=float), 1e-7, 1 - 1e-7)
-    return {
+    result = {
         'rows': len(y), 'kept_rate': round(float(np.mean(y)), 6),
         'roc_auc': round(float(roc_auc_score(y, probability)), 6) if len(set(y)) == 2 else None,
         'average_precision': round(float(average_precision_score(y, probability)), 6),
+        'pr_auc_broken': round(float(average_precision_score(1-np.asarray(y), 1-probability)), 6),
+        'pr_auc_definition': 'average precision, positive class = broken promise',
         'log_loss': round(float(log_loss(y, probability)), 6),
         'calibration': calibration(y, probability),
     }
+    result['reliability_table'] = result['calibration']['bins']
+    result['lift_by_decile'] = broken_risk_lift(y, probability)
+    return result
 
 
 def compare_existing_scores(con, split: Path, data_dir: Path,
@@ -160,6 +200,9 @@ def train(table_path: Path, output_dir: Path, data_dir: Path) -> dict:
             'logistic_regression': evaluate(y_test, base_probability),
             'lightgbm': evaluate(y_test, boost_probability),
             'existing_model_scores': scores,
+            'signal_assessment': (
+                'Signal is modest: held-out ROC AUC is around 0.67 and calibration is weak '
+                'after the train/test kept-rate shift. Rank lift does not imply action uplift.'),
             'limitations': [
                 'The backtest is observational and cannot establish treatment uplift.',
                 'Current C360 identity links map historical bureau records; link provenance is from the later snapshot.',
