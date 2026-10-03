@@ -18,3 +18,6 @@ __pycache__/
 /build_phase.txt
 /HACKERS_SystemDesign.txt
 /extract_pdfs.py
+
+# Generated pipeline outputs; submission artifacts belong in submission/
+/local_artifacts/

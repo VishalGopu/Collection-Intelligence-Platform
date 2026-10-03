@@ -1,0 +1,49 @@
+{
+  "contract_id": "golden-c360-v1",
+  "owner": "Collections data product team",
+  "snapshot_date": "2026-09-28",
+  "refresh": "batch for hackathon build",
+  "allowed_uses": ["collections context", "governed analytics", "approved feature generation"],
+  "prohibited_uses": ["protected-attribute decisioning", "unscoped PII export", "customer action without human review"],
+  "outputs": {
+    "golden_customers": {
+      "path": "local_artifacts/c360/golden_customers.parquet",
+      "grain": "one row per golden_customer_id",
+      "required_columns": {
+        "golden_customer_id": "string, unique and non-null",
+        "as_of_date": "date, non-null",
+        "crm_customer_ids": "array<string>, non-empty",
+        "min_match_confidence": "float, 0..1",
+        "open_case_count": "integer, >=0",
+        "max_current_dpd": "integer or null, >=0 when present",
+        "total_overdue_cad": "decimal, >=0",
+        "hardship_flag": "boolean, non-null",
+        "consent_call": "boolean, non-null; unknown or conflicting means false",
+        "consent_sms": "boolean, non-null; unknown or conflicting means false",
+        "consent_email": "boolean, non-null; unknown or conflicting means false",
+        "dq_status": "string: passed or needs_review"
+      }
+    },
+    "identity_crosswalk": {
+      "path": "local_artifacts/c360/identity_crosswalk.parquet",
+      "grain": "one row per source_system and source_customer_id",
+      "required_columns": {
+        "source_system": "string: crm, cards, lending, core_banking, or collections",
+        "source_customer_id": "string, non-null; preserve leading zeros",
+        "golden_customer_id": "string or null; null when unlinked",
+        "match_method": "string, non-null",
+        "match_confidence": "float, 0..1",
+        "link_status": "string: linked, review_pending, or unlinked",
+        "as_of_date": "date, non-null"
+      }
+    }
+  },
+  "join_rule": "For collections_cases, join coll_customer_ref to identity_crosswalk.source_customer_id where source_system = 'crm' and link_status = 'linked'.",
+  "quality_rules": [
+    "golden_customer_id is unique and non-null",
+    "each source_system and source_customer_id pair maps to at most one golden_customer_id",
+    "match_confidence is between 0 and 1",
+    "unlinked and review_pending records are not used for customer-level answers or decisions",
+    "protected attributes are excluded from golden_customers and decision features"
+  ]
+}
