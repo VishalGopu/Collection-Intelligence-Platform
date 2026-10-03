@@ -1,6 +1,6 @@
 {
   "phase": "thin end-to-end MVP",
-  "generated_at": "2026-10-03T12:16:23.223022+00:00",
+  "generated_at": "2026-10-03T13:00:59.922358+00:00",
   "data_snapshot_date": "2026-09-28",
   "prediction_as_of": "2026-09-28T16:00:00+00:00",
   "normal_demo_customer": {
@@ -32,7 +32,7 @@
       "right_party_contacts": 0,
       "rpc_rate": 0.0,
       "smoothed_rpc_rate": 2.0565552699228792e-05,
-      "mean_contact_cost_cad": 0.010000000000000217,
+      "mean_contact_cost_cad": 0.010000000000000255,
       "latest_source_ts": "2026-09-27T23:41:32",
       "time_band": "afternoon"
     },
@@ -68,16 +68,16 @@
     "specialist_suppresses_normal_actions": "passed",
     "persisted_review_count": 4
   },
-  "elapsed_seconds": 3.247,
+  "elapsed_seconds": 7.454,
   "models": {
-    "logistic_regression": "pending",
-    "lightgbm": "pending",
-    "historical_model_scores_comparison": "pending",
-    "shap": "pending"
+    "logistic_regression": "evaluated",
+    "lightgbm": "promise-kept-v1",
+    "historical_model_scores_comparison": "evaluated",
+    "shap": "top three factors attached"
   },
   "limitations": [
     "Observational channel rates: agents chose channels; these are not causal effects.",
-    "Scores are assumed utilities, not repayment probabilities; trained models and SHAP are pending.",
+    "Promise-kept probability is observational and conditional on a promise; it is not action uplift.",
     "Frozen 2026-09-28 snapshot; this is a demo, not a live action execution system.",
     "Global channel/time-band rates; missing RPC labels are excluded.",
     "The release records zero RPCs for digital channels in the demo band; this metric may be call-oriented."

@@ -14,7 +14,7 @@ from .policy import DecisionContext
 
 
 SNAPSHOT_DATE = date(2026, 9, 28)
-CACHE_VERSION = "thin-flow-v1"
+CACHE_VERSION = "thin-flow-v2"
 
 # Safety flags below stay in policy context; none are supplied to the ranker.
 CUSTOMER_COLUMNS = (
@@ -31,6 +31,7 @@ CASE_COLUMNS = (
     "vulnerable_customer_flag", "cease_contact_flag", "insolvency_hold_flag",
     "deceased_hold_flag", "dispute_flag", "dispute_status", "complaint_flag",
     "contact_cap_7d", "primary_product", "current_dpd", "case_open_date",
+    "total_overdue",
 )
 CONTACT_COLUMNS = (
     "contact_id", "crm_customer_id", "case_id", "direction", "channel",
@@ -66,9 +67,24 @@ class ReleaseAdapter:
         self.data_dir = data_dir.resolve()
         self.c360_dir = c360_dir.resolve()
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        self.connection = duckdb.connect(str(cache_path))
+        fingerprint = self._fingerprint()
+        reusable = False
+        if cache_path.is_file():
+            try:
+                self.connection = duckdb.connect(str(cache_path), read_only=True)
+                reusable = (self.connection.execute('SELECT fingerprint FROM cache_metadata').fetchone()
+                            == (fingerprint,))
+            except duckdb.Error:
+                reusable = False
+            if not reusable:
+                self.connection.close()
+        if not reusable:
+            self.connection = duckdb.connect(str(cache_path))
+            self.connection.execute("SET memory_limit = '2GB'")
+            self._prepare_cache(fingerprint)
+            self.connection.close()
+            self.connection = duckdb.connect(str(cache_path), read_only=True)
         self.connection.execute("SET memory_limit = '2GB'")
-        self._prepare_cache()
         self.has_c360 = (self.c360_dir / "identity_crosswalk.parquet").is_file()
         if self.has_c360:
             self._register_contract()
@@ -76,14 +92,16 @@ class ReleaseAdapter:
     def _source(self, name: str) -> str:
         return f"read_csv({quote_path(self.data_dir / 'data' / (name + '.csv'))}, header=true, all_varchar=true)"
 
-    def _prepare_cache(self):
+    def _fingerprint(self):
         source_names = ("customers", "collections_cases", "contact_history", "promises_to_pay",
                         "external", "card_accounts", "agents", "hardship_programs")
-        fingerprint = hashlib.sha256(json.dumps([
+        return hashlib.sha256(json.dumps([
             CACHE_VERSION, str(self.data_dir),
             [(n, (self.data_dir / 'data' / (n + '.csv')).stat().st_size,
               (self.data_dir / 'data' / (n + '.csv')).stat().st_mtime_ns) for n in source_names],
         ]).encode()).hexdigest()
+
+    def _prepare_cache(self, fingerprint):
         con = self.connection
         con.execute("CREATE TABLE IF NOT EXISTS cache_metadata (fingerprint VARCHAR)")
         if con.execute("SELECT fingerprint FROM cache_metadata").fetchone() == (fingerprint,):
@@ -319,6 +337,84 @@ class ReleaseAdapter:
             permitted_end=min((p['permitted_call_end_local'] or 'unknown') for p in profiles),
             holiday=False, specialist_agent_id=agent,
         )
+
+    def model_features(self, context: DecisionContext) -> dict:
+        """At-snapshot numerical inputs with the same ten definitions as training.
+
+        Only linked source IDs are used; no safeguard flag, protected attribute,
+        deposit or transaction amount is included.
+        """
+        from src.features.training import FEATURE_COLUMNS, model_columns
+
+        model_columns(FEATURE_COLUMNS)
+        if not context.linked or not context.case_ids:
+            return {}
+        con = self.connection
+        cutoff = utc_cutoff(context.as_of)
+        cases = records(con, "SELECT current_dpd,total_overdue FROM cases_state WHERE case_id IN (SELECT unnest(?))",
+                        [context.case_ids])
+        def number(value):
+            try:
+                return float(value) if value not in (None, '') else None
+            except (TypeError, ValueError):
+                return None
+        dpd_values = [number(row['current_dpd']) for row in cases]
+        dpd = max((value for value in dpd_values if value is not None), default=None)
+        overdue = sum((number(row['total_overdue']) or 0) for row in cases)
+        prior = con.execute("""SELECT count(*) FROM promise_evidence
+            WHERE crm_customer_id IN (SELECT unnest(?)) AND ptp_status='broken'
+              AND ptp_created_ts<? AND status_ts<?""", [context.crm_ids, cutoff, cutoff]).fetchone()[0]
+        broken90 = con.execute("""SELECT count(*) FROM promise_evidence
+            WHERE crm_customer_id IN (SELECT unnest(?)) AND ptp_status='broken'
+              AND ptp_created_ts<? AND status_ts<?
+              AND status_ts>=? - INTERVAL '90 days'""",
+            [context.crm_ids, cutoff, cutoff, cutoff]).fetchone()[0]
+        contacts = con.execute("""SELECT count(*),count(*) FILTER (WHERE rpc_flag)
+            FROM contact_evidence WHERE crm_customer_id IN (SELECT unnest(?))
+              AND direction='outbound' AND contact_ts_utc<?
+              AND contact_ts_utc>=? - INTERVAL '30 days'""",
+            [context.crm_ids, cutoff, cutoff]).fetchone()
+        snapshots = self.data_dir / 'data/account_monthly_snapshot' / '*' / '*.parquet'
+        card = con.execute(f"""SELECT arg_max(
+                try_cast(balance AS DOUBLE)/nullif(try_cast(limit_or_original_amount AS DOUBLE),0),
+                struct_pack(d:=CAST(try_strptime(CAST(month_end_date AS VARCHAR),
+                    ['%Y-%m-%d','%d/%m/%Y','%Y%m%d']) AS DATE),a:=account_id))
+            FROM read_parquet({quote_path(snapshots)}, hive_partitioning=true)
+            WHERE product_type='card'
+              AND crm_customer_id IN (SELECT unnest(?))
+              AND CAST(try_strptime(CAST(month_end_date AS VARCHAR),
+                    ['%Y-%m-%d','%d/%m/%Y','%Y%m%d']) AS DATE) < ?""",
+            [context.crm_ids, cutoff.date()]).fetchone()[0]
+        cores = [row[0] for row in con.execute("""SELECT source_customer_id FROM identity_crosswalk
+            WHERE golden_customer_id=? AND source_system='core_banking' AND link_status='linked'""",
+            [context.customer_id]).fetchall()]
+        bureau_score = bureau_delta = None
+        if cores:
+            bureau_path = self.data_dir / 'data/bureau_history' / '*' / '*.parquet'
+            bureau_rows = con.execute(f"""WITH scored AS (
+              SELECT bank_subject_ref,pull_date,try_cast(risk_score AS DOUBLE) AS risk_score,
+                     lag(try_cast(risk_score AS DOUBLE)) OVER (
+                       PARTITION BY bank_subject_ref ORDER BY pull_date) AS previous_score
+              FROM read_parquet({quote_path(bureau_path)}, hive_partitioning=true)
+              WHERE bank_subject_ref IN (SELECT unnest(?)) AND pull_date<?
+            ) SELECT risk_score,risk_score-previous_score FROM scored
+              ORDER BY pull_date DESC, bank_subject_ref DESC LIMIT 1""",
+              [cores, cutoff.date()]).fetchone()
+            if bureau_rows:
+                bureau_score, bureau_delta = bureau_rows
+        result = {
+            'dpd_at_creation': dpd,
+            'dpd_bucket_at_creation': (0 if dpd < 30 else 1 if dpd < 60 else 2 if dpd < 90 else 3)
+                                      if dpd is not None else None,
+            'overdue_at_creation': overdue,
+            'prior_broken_ptp_count_at_creation': prior,
+            'broken_promises_90d': broken90,
+            'recent_contacts_30d': contacts[0], 'recent_rpc_30d': contacts[1],
+            'card_utilisation': card, 'bureau_risk_score': bureau_score,
+            'bureau_score_change': bureau_delta,
+        }
+        model_columns(result)
+        return result
 
     def close(self):
         self.connection.close()

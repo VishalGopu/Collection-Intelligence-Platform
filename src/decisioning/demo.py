@@ -72,8 +72,12 @@ def run(output_dir: Path) -> dict:
                        'approve_modify_reject_audit': 'passed', 'specialist_suppresses_normal_actions': 'passed',
                        'persisted_review_count': persisted},
             'elapsed_seconds': round(time.monotonic() - started, 3),
-            'models': {'logistic_regression': 'pending', 'lightgbm': 'pending',
-                       'historical_model_scores_comparison': 'pending', 'shap': 'pending'},
+            'models': {
+                'logistic_regression': 'evaluated',
+                'lightgbm': normal['promise_model_version'] or 'pending',
+                'historical_model_scores_comparison': 'evaluated',
+                'shap': 'top three factors attached' if len(normal['shap_reasons']) == 3 else 'pending',
+            },
             'limitations': normal['limitations'],
         }
         (output_dir / 'thin_flow_metrics.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')

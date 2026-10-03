@@ -1,7 +1,7 @@
 {
   "decisions": [
     {
-      "decision_id": "c7acf935-5515-42eb-b3e7-d8f61d58cf36",
+      "decision_id": "00157c3b-a81f-44b0-9e3e-9daa7bbee732",
       "customer_id": "G-b1714eca2809e88d7587",
       "crm_customer_ids": [
         "AAA-4262"
@@ -13,7 +13,7 @@
       "channel": "call",
       "score": 0.118139,
       "probabilities": {
-        "promise_kept": null,
+        "promise_kept": 0.2130232343295894,
         "observed_rpc_by_channel": {
           "call": 0.39767211346442577,
           "sms": 0.0,
@@ -63,7 +63,7 @@
         }
       },
       "reasons": [
-        "CALL had 54563 right-party contacts in 137206 outbound attempts in the afternoon band over the prior 90 days (39.8%), at an average cost of CAD 1.35; the assumed rate/cost weights favour this option."
+        "Policy permits the proposed action. The three strongest model factors are card utilisation in the last completed monthly snapshot (0.84) lowers the model's promise-keeping score; days past due (72.00) lowers the model's promise-keeping score; overdue balance (662.89) lowers the model's promise-keeping score."
       ],
       "alternatives": [
         {
@@ -94,7 +94,7 @@
             "right_party_contacts": 0,
             "rpc_rate": 0.0,
             "smoothed_rpc_rate": 2.0565552699228792e-05,
-            "mean_contact_cost_cad": 0.010000000000000217,
+            "mean_contact_cost_cad": 0.010000000000000255,
             "latest_source_ts": "2026-09-27T23:41:32",
             "time_band": "afternoon"
           }
@@ -115,7 +115,7 @@
           "right_party_contacts": 0,
           "rpc_rate": 0.0,
           "smoothed_rpc_rate": 2.0565552699228792e-05,
-          "mean_contact_cost_cad": 0.010000000000000217,
+          "mean_contact_cost_cad": 0.010000000000000255,
           "latest_source_ts": "2026-09-27T23:41:32",
           "time_band": "afternoon"
         },
@@ -139,9 +139,33 @@
         }
       },
       "specialist_agent_id": null,
+      "shap_reasons": [
+        {
+          "feature": "card_utilisation",
+          "label": "card utilisation in the last completed monthly snapshot",
+          "value": 0.8412155555555555,
+          "shap_log_odds": -1.6441797379652543,
+          "direction": "lowers"
+        },
+        {
+          "feature": "dpd_at_creation",
+          "label": "days past due",
+          "value": 72.0,
+          "shap_log_odds": -0.3457376968476802,
+          "direction": "lowers"
+        },
+        {
+          "feature": "overdue_at_creation",
+          "label": "overdue balance",
+          "value": 662.89,
+          "shap_log_odds": -0.10942292493109501,
+          "direction": "lowers"
+        }
+      ],
       "requires_human_review": true,
       "status": "pending_review",
       "scorer_version": "explicit-rule-v1",
+      "promise_model_version": "promise-kept-v1",
       "policy_version": "maple-thin-v1",
       "scoring_assumptions": {
         "rpc_rate": 0.8,
@@ -151,14 +175,14 @@
       },
       "limitations": [
         "Observational channel rates: agents chose channels; these are not causal effects.",
-        "Scores are assumed utilities, not repayment probabilities; trained models and SHAP are pending.",
+        "Promise-kept probability is observational and conditional on a promise; it is not action uplift.",
         "Frozen 2026-09-28 snapshot; this is a demo, not a live action execution system.",
         "Global channel/time-band rates; missing RPC labels are excluded.",
         "The release records zero RPCs for digital channels in the demo band; this metric may be call-oriented."
       ]
     },
     {
-      "decision_id": "fa7809b1-6e3d-4c30-beca-a3abf5fd0a03",
+      "decision_id": "c426aa61-1d64-4a21-b8c2-c9db3374f425",
       "customer_id": "G-b1714eca2809e88d7587",
       "crm_customer_ids": [
         "AAA-4262"
@@ -170,7 +194,7 @@
       "channel": "call",
       "score": 0.118139,
       "probabilities": {
-        "promise_kept": null,
+        "promise_kept": 0.2130232343295894,
         "observed_rpc_by_channel": {
           "call": 0.39767211346442577,
           "sms": 0.0,
@@ -220,7 +244,7 @@
         }
       },
       "reasons": [
-        "CALL had 54563 right-party contacts in 137206 outbound attempts in the afternoon band over the prior 90 days (39.8%), at an average cost of CAD 1.35; the assumed rate/cost weights favour this option."
+        "Policy permits the proposed action. The three strongest model factors are card utilisation in the last completed monthly snapshot (0.84) lowers the model's promise-keeping score; days past due (72.00) lowers the model's promise-keeping score; overdue balance (662.89) lowers the model's promise-keeping score."
       ],
       "alternatives": [
         {
@@ -237,7 +261,7 @@
             "right_party_contacts": 0,
             "rpc_rate": 0.0,
             "smoothed_rpc_rate": 3.2155374770892955e-05,
-            "mean_contact_cost_cad": 0.000999999999999947,
+            "mean_contact_cost_cad": 0.000999999999999946,
             "latest_source_ts": "2026-09-27T22:45:27",
             "time_band": "afternoon"
           }
@@ -251,7 +275,7 @@
             "right_party_contacts": 0,
             "rpc_rate": 0.0,
             "smoothed_rpc_rate": 2.0565552699228792e-05,
-            "mean_contact_cost_cad": 0.01000000000000026,
+            "mean_contact_cost_cad": 0.010000000000000203,
             "latest_source_ts": "2026-09-27T23:41:32",
             "time_band": "afternoon"
           }
@@ -263,7 +287,7 @@
           "right_party_contacts": 54563,
           "rpc_rate": 0.39767211346442577,
           "smoothed_rpc_rate": 0.3976736050376071,
-          "mean_contact_cost_cad": 1.3456756264303302,
+          "mean_contact_cost_cad": 1.3456756264303298,
           "latest_source_ts": "2026-09-27T23:58:50",
           "time_band": "afternoon"
         },
@@ -272,7 +296,7 @@
           "right_party_contacts": 0,
           "rpc_rate": 0.0,
           "smoothed_rpc_rate": 2.0565552699228792e-05,
-          "mean_contact_cost_cad": 0.01000000000000026,
+          "mean_contact_cost_cad": 0.010000000000000203,
           "latest_source_ts": "2026-09-27T23:41:32",
           "time_band": "afternoon"
         },
@@ -281,7 +305,7 @@
           "right_party_contacts": 0,
           "rpc_rate": 0.0,
           "smoothed_rpc_rate": 3.2155374770892955e-05,
-          "mean_contact_cost_cad": 0.000999999999999947,
+          "mean_contact_cost_cad": 0.000999999999999946,
           "latest_source_ts": "2026-09-27T22:45:27",
           "time_band": "afternoon"
         },
@@ -296,9 +320,33 @@
         }
       },
       "specialist_agent_id": null,
+      "shap_reasons": [
+        {
+          "feature": "card_utilisation",
+          "label": "card utilisation in the last completed monthly snapshot",
+          "value": 0.8412155555555555,
+          "shap_log_odds": -1.6441797379652543,
+          "direction": "lowers"
+        },
+        {
+          "feature": "dpd_at_creation",
+          "label": "days past due",
+          "value": 72.0,
+          "shap_log_odds": -0.3457376968476802,
+          "direction": "lowers"
+        },
+        {
+          "feature": "overdue_at_creation",
+          "label": "overdue balance",
+          "value": 662.89,
+          "shap_log_odds": -0.10942292493109501,
+          "direction": "lowers"
+        }
+      ],
       "requires_human_review": true,
       "status": "pending_review",
       "scorer_version": "explicit-rule-v1",
+      "promise_model_version": "promise-kept-v1",
       "policy_version": "maple-thin-v1",
       "scoring_assumptions": {
         "rpc_rate": 0.8,
@@ -308,14 +356,14 @@
       },
       "limitations": [
         "Observational channel rates: agents chose channels; these are not causal effects.",
-        "Scores are assumed utilities, not repayment probabilities; trained models and SHAP are pending.",
+        "Promise-kept probability is observational and conditional on a promise; it is not action uplift.",
         "Frozen 2026-09-28 snapshot; this is a demo, not a live action execution system.",
         "Global channel/time-band rates; missing RPC labels are excluded.",
         "The release records zero RPCs for digital channels in the demo band; this metric may be call-oriented."
       ]
     },
     {
-      "decision_id": "12328887-b7b3-459f-b438-8332f02bd006",
+      "decision_id": "d9ee83a9-70cc-4829-a917-162776fdabfc",
       "customer_id": "G-b1714eca2809e88d7587",
       "crm_customer_ids": [
         "AAA-4262"
@@ -327,7 +375,7 @@
       "channel": "call",
       "score": 0.118139,
       "probabilities": {
-        "promise_kept": null,
+        "promise_kept": 0.2130232343295894,
         "observed_rpc_by_channel": {
           "call": 0.39767211346442577,
           "sms": 0.0,
@@ -377,7 +425,7 @@
         }
       },
       "reasons": [
-        "CALL had 54563 right-party contacts in 137206 outbound attempts in the afternoon band over the prior 90 days (39.8%), at an average cost of CAD 1.35; the assumed rate/cost weights favour this option."
+        "Policy permits the proposed action. The three strongest model factors are card utilisation in the last completed monthly snapshot (0.84) lowers the model's promise-keeping score; days past due (72.00) lowers the model's promise-keeping score; overdue balance (662.89) lowers the model's promise-keeping score."
       ],
       "alternatives": [
         {
@@ -408,7 +456,7 @@
             "right_party_contacts": 0,
             "rpc_rate": 0.0,
             "smoothed_rpc_rate": 2.0565552699228792e-05,
-            "mean_contact_cost_cad": 0.01000000000000037,
+            "mean_contact_cost_cad": 0.01000000000000022,
             "latest_source_ts": "2026-09-27T23:41:32",
             "time_band": "afternoon"
           }
@@ -429,7 +477,7 @@
           "right_party_contacts": 0,
           "rpc_rate": 0.0,
           "smoothed_rpc_rate": 2.0565552699228792e-05,
-          "mean_contact_cost_cad": 0.01000000000000037,
+          "mean_contact_cost_cad": 0.01000000000000022,
           "latest_source_ts": "2026-09-27T23:41:32",
           "time_band": "afternoon"
         },
@@ -453,9 +501,33 @@
         }
       },
       "specialist_agent_id": null,
+      "shap_reasons": [
+        {
+          "feature": "card_utilisation",
+          "label": "card utilisation in the last completed monthly snapshot",
+          "value": 0.8412155555555555,
+          "shap_log_odds": -1.6441797379652543,
+          "direction": "lowers"
+        },
+        {
+          "feature": "dpd_at_creation",
+          "label": "days past due",
+          "value": 72.0,
+          "shap_log_odds": -0.3457376968476802,
+          "direction": "lowers"
+        },
+        {
+          "feature": "overdue_at_creation",
+          "label": "overdue balance",
+          "value": 662.89,
+          "shap_log_odds": -0.10942292493109501,
+          "direction": "lowers"
+        }
+      ],
       "requires_human_review": true,
       "status": "pending_review",
       "scorer_version": "explicit-rule-v1",
+      "promise_model_version": "promise-kept-v1",
       "policy_version": "maple-thin-v1",
       "scoring_assumptions": {
         "rpc_rate": 0.8,
@@ -465,14 +537,14 @@
       },
       "limitations": [
         "Observational channel rates: agents chose channels; these are not causal effects.",
-        "Scores are assumed utilities, not repayment probabilities; trained models and SHAP are pending.",
+        "Promise-kept probability is observational and conditional on a promise; it is not action uplift.",
         "Frozen 2026-09-28 snapshot; this is a demo, not a live action execution system.",
         "Global channel/time-band rates; missing RPC labels are excluded.",
         "The release records zero RPCs for digital channels in the demo band; this metric may be call-oriented."
       ]
     },
     {
-      "decision_id": "04ed2a3e-397b-451f-8446-65df918f2d83",
+      "decision_id": "19ef0117-0a9b-44c1-9905-3d0d8619e29a",
       "customer_id": "G-c4a6b6148266a0018109",
       "crm_customer_ids": [
         "AAA-7546"
@@ -484,7 +556,7 @@
       "channel": null,
       "score": null,
       "probabilities": {
-        "promise_kept": null,
+        "promise_kept": 0.7218845816383886,
         "observed_rpc_by_channel": {
           "call": 0.39767211346442577,
           "sms": 0.0,
@@ -541,7 +613,7 @@
         }
       },
       "reasons": [
-        "A support safeguard requires specialist review; normal collection actions are suppressed."
+        "Policy requires specialist review. The three strongest model factors are days past due (9.00) raises the model's promise-keeping score; collection contacts in the previous 30 days (1.00) raises the model's promise-keeping score; overdue balance (419.17) lowers the model's promise-keeping score."
       ],
       "alternatives": [
         {
@@ -565,7 +637,7 @@
           "right_party_contacts": 0,
           "rpc_rate": 0.0,
           "smoothed_rpc_rate": 2.0565552699228792e-05,
-          "mean_contact_cost_cad": 0.010000000000000193,
+          "mean_contact_cost_cad": 0.010000000000000293,
           "latest_source_ts": "2026-09-27T23:41:32",
           "time_band": "afternoon"
         },
@@ -574,7 +646,7 @@
           "right_party_contacts": 0,
           "rpc_rate": 0.0,
           "smoothed_rpc_rate": 3.2155374770892955e-05,
-          "mean_contact_cost_cad": 0.0009999999999999462,
+          "mean_contact_cost_cad": 0.0009999999999999471,
           "latest_source_ts": "2026-09-27T22:45:27",
           "time_band": "afternoon"
         },
@@ -589,9 +661,33 @@
         }
       },
       "specialist_agent_id": "AG-1584",
+      "shap_reasons": [
+        {
+          "feature": "dpd_at_creation",
+          "label": "days past due",
+          "value": 9.0,
+          "shap_log_odds": 0.2830139362923669,
+          "direction": "raises"
+        },
+        {
+          "feature": "recent_contacts_30d",
+          "label": "collection contacts in the previous 30 days",
+          "value": 1.0,
+          "shap_log_odds": 0.12943670698887974,
+          "direction": "raises"
+        },
+        {
+          "feature": "overdue_at_creation",
+          "label": "overdue balance",
+          "value": 419.17,
+          "shap_log_odds": -0.0517225787907881,
+          "direction": "lowers"
+        }
+      ],
       "requires_human_review": true,
       "status": "pending_review",
       "scorer_version": "explicit-rule-v1",
+      "promise_model_version": "promise-kept-v1",
       "policy_version": "maple-thin-v1",
       "scoring_assumptions": {
         "rpc_rate": 0.8,
@@ -601,7 +697,7 @@
       },
       "limitations": [
         "Observational channel rates: agents chose channels; these are not causal effects.",
-        "Scores are assumed utilities, not repayment probabilities; trained models and SHAP are pending.",
+        "Promise-kept probability is observational and conditional on a promise; it is not action uplift.",
         "Frozen 2026-09-28 snapshot; this is a demo, not a live action execution system.",
         "Global channel/time-band rates; missing RPC labels are excluded.",
         "The release records zero RPCs for digital channels in the demo band; this metric may be call-oriented."
@@ -610,9 +706,9 @@
   ],
   "reviews": [
     {
-      "event_id": "d13ba54e-421f-48a4-8f81-1d46d9e2c5be",
-      "decision_id": "c7acf935-5515-42eb-b3e7-d8f61d58cf36",
-      "reviewed_at": "2026-10-03T12:16:22.136202+00:00",
+      "event_id": "abefd730-6c6a-4ff0-bf5f-2b4f3c2931b3",
+      "decision_id": "00157c3b-a81f-44b0-9e3e-9daa7bbee732",
+      "reviewed_at": "2026-10-03T13:00:58.257945+00:00",
       "reviewer": "demo-reviewer",
       "disposition": "approve",
       "original_action": "call",
@@ -661,9 +757,9 @@
       }
     },
     {
-      "event_id": "7e163da4-06d8-431f-bc47-973ea6f39013",
-      "decision_id": "fa7809b1-6e3d-4c30-beca-a3abf5fd0a03",
-      "reviewed_at": "2026-10-03T12:16:22.612149+00:00",
+      "event_id": "7b3b2a62-b81d-4b3c-b13a-82ebe6423adf",
+      "decision_id": "c426aa61-1d64-4a21-b8c2-c9db3374f425",
+      "reviewed_at": "2026-10-03T13:00:58.960711+00:00",
       "reviewer": "demo-reviewer",
       "disposition": "modify",
       "original_action": "call",
@@ -712,9 +808,9 @@
       }
     },
     {
-      "event_id": "f28c3b9c-9ce1-427f-a5e2-5935ab7ab435",
-      "decision_id": "12328887-b7b3-459f-b438-8332f02bd006",
-      "reviewed_at": "2026-10-03T12:16:23.021440+00:00",
+      "event_id": "6075aa8a-3a23-4760-8858-0a069394cca9",
+      "decision_id": "d9ee83a9-70cc-4829-a917-162776fdabfc",
+      "reviewed_at": "2026-10-03T13:00:59.653600+00:00",
       "reviewer": "demo-reviewer",
       "disposition": "reject",
       "original_action": "call",
@@ -763,9 +859,9 @@
       }
     },
     {
-      "event_id": "7565e7f9-8dd3-486a-ab76-ca496fc23850",
-      "decision_id": "04ed2a3e-397b-451f-8446-65df918f2d83",
-      "reviewed_at": "2026-10-03T12:16:23.219376+00:00",
+      "event_id": "f5272596-45ab-4b43-9cf5-257aaf6abbbc",
+      "decision_id": "19ef0117-0a9b-44c1-9905-3d0d8619e29a",
+      "reviewed_at": "2026-10-03T13:00:59.918197+00:00",
       "reviewer": "demo-reviewer",
       "disposition": "approve",
       "original_action": "specialist_review",

@@ -1,4 +1,4 @@
-"""Thin end-to-end recommendation and human review, before trained models."""
+"""Policy-gated recommendation with observed channel evidence and a promise model."""
 
 from __future__ import annotations
 
@@ -21,8 +21,14 @@ class RecommendationEngine:
                  c360_dir=Path('local_artifacts/c360'),
                  cache_path=Path('local_artifacts/decisioning/source_cache.duckdb'),
                  audit_path=Path('local_artifacts/decisioning/audit.sqlite'), *, adapter=None):
+        supplied_adapter = adapter is not None
         self.adapter = adapter or ReleaseAdapter(Path(data_dir), Path(c360_dir), Path(cache_path))
         self.audit = AuditStore(Path(audit_path))
+        model_path = Path(__file__).resolve().parent / 'artifacts/promise_kept_lightgbm.joblib'
+        self.model = None
+        if model_path.is_file() and not supplied_adapter:
+            from .model import PromiseModel
+            self.model = PromiseModel(model_path)
 
     def recommend(self, customer_id: str, *, as_of: datetime = DEMO_AS_OF) -> dict:
         context = self.adapter.context(customer_id, as_of)
@@ -38,6 +44,13 @@ class RecommendationEngine:
             choices = rank_actions(evidence, broken, checks)
         choice = choices[0]
         reason = explain(choice, broken)
+        model_result = None
+        if self.model is not None and context.linked:
+            features = self.adapter.model_features(context)
+            if features:
+                model_result = self.model.score(features)
+                from .model import reason_sentence
+                reason = reason_sentence(model_result['shap_reasons'], choice['action'])
         if choice['action'] == 'wait':
             blocked = sorted({reason for c in checks.values() for reason in c['reasons']
                               if reason not in ('no_specialist_route_needed',)})
@@ -79,17 +92,24 @@ class RecommendationEngine:
             'policy_checks': checks, 'reasons': [reason], 'alternatives': choices[1:],
             'channel_evidence': evidence,
             'specialist_agent_id': context.specialist_agent_id if choice['action'] == 'specialist_review' else None,
+            'shap_reasons': model_result['shap_reasons'] if model_result else [],
             'requires_human_review': True, 'status': 'pending_review',
-            'scorer_version': 'explicit-rule-v1', 'policy_version': 'maple-thin-v1',
+            'scorer_version': 'explicit-rule-v1',
+            'promise_model_version': model_result['model_version'] if model_result else None,
+            'policy_version': 'maple-thin-v1',
             'scoring_assumptions': WEIGHTS,
             'limitations': [
                 'Observational channel rates: agents chose channels; these are not causal effects.',
-                'Scores are assumed utilities, not repayment probabilities; trained models and SHAP are pending.',
+                'Channel scores are assumed utilities; the separate promise model does not estimate action uplift.',
                 'Frozen 2026-09-28 snapshot; this is a demo, not a live action execution system.',
                 'Global channel/time-band rates; missing RPC labels are excluded.',
                 'The release records zero RPCs for digital channels in the demo band; this metric may be call-oriented.',
             ],
         }
+        if model_result:
+            result['probabilities']['promise_kept'] = model_result['probability']
+            result['limitations'][1] = (
+                'Promise-kept probability is observational and conditional on a promise; it is not action uplift.')
         self.audit.save(result)
         return result
 
