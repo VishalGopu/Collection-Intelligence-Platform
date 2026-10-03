@@ -18,7 +18,10 @@ From the repository root, using the environment described in the dataset guide:
 .\.venv\Scripts\python.exe -m pip install -r src/decisioning/requirements.txt pytest
 .\.venv\Scripts\python.exe src/c360/build.py
 .\.venv\Scripts\python.exe -m src.features.training
+.\.venv\Scripts\python.exe -m src.features.candidates
+.\.venv\Scripts\python.exe -m src.features.candidates --base local_artifacts/features/open_promise_features.parquet --output local_artifacts/features/open_promise_candidates.parquet
 .\.venv\Scripts\python.exe -m src.decisioning.train
+.\.venv\Scripts\python.exe -m src.decisioning.restricted.fairness
 .\.venv\Scripts\python.exe -m pytest tests/features tests/decisioning -q
 .\.venv\Scripts\python.exe -m src.decisioning.demo
 .\.venv\Scripts\python.exe -m src.decisioning.cli recommend G-39c6b287f70371cd9fc6
@@ -151,8 +154,9 @@ snapshot demo's safeguards, not historical training.
 
 ## Promise-kept model and backtest
 
-`src/features/training.py` builds a one-row-per-promise Parquet table with ten
-allowlisted numeric features. It uses contacts, earlier broken promises, prior
+`src/features/training.py` builds one-row-per-promise training and open-promise
+Parquet tables. The final model uses eleven allowlisted numeric features. It uses
+contacts, earlier resolved promises, earlier employer payroll credits, prior
 monthly card snapshots and bureau pulls dated before each promise. The
 source-provided DPD, overdue balance and prior broken count are explicitly
 recorded at promise creation. Labels come from later observed `kept` or `broken`
@@ -168,25 +172,90 @@ training cutoff. The train set has 137,149 rows (64.30% kept); the test set has
 The reported Brier score and ten calibration bins show its size; no calibrated
 probability or causal effect is claimed.
 
-| Model | Test rows | ROC AUC | Average precision | Brier | Calibration error |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Logistic regression | 54,657 | 0.6734 | 0.5416 | 0.2534 | 0.1908 |
-| LightGBM | 54,657 | 0.6746 | 0.5447 | 0.2464 | 0.1577 |
+| Model | Test rows | ROC AUC | PR-AUC (broken) | Brier | Top 10% broken capture | Top 20% broken capture |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Logistic regression | 54,657 | 0.6770 | 0.7523 | 0.2492 | 13.05% | 25.67% |
+| LightGBM | 54,657 | 0.6811 | 0.7527 | 0.2391 | 12.90% | 25.36% |
+
+The signal is modest. The test broken-promise rate is 62.39%; top-decile
+capture only modestly exceeds random ranking. The committed metrics JSON includes
+the full reliability table, risk-decile lift table and same-row comparisons to
+pre-promise `model_scores`.
+
+In the feature round, employer-only payroll timing and earlier kept rate helped.
+Card utilisation stayed, while bureau score change was removed after its
+time-holdout ablation improved results. Days since last contact had negligible
+gain and slightly worse Brier. Promise amount divided by overdue produced an
+implausible AUC above 0.94 in this synthetic dataset, so it was excluded as a
+likely outcome-generation artifact. `employer_flag='Y'` excludes benefits and
+other income; no CCB deposit or transaction source is used. This same holdout
+selected features, so the measured gains may be optimistic.
 
 The supplied `model_scores` comparison uses only scores timestamped **before**
 each promise. Rows marked `uses_protected_attributes=true` or with an unknown
 flag are discarded. The existing `ptp_break` model has 1,881 eligible test
-rows: AUC **0.7129** versus **0.6808** for logistic regression and **0.6849**
+rows: AUC **0.7129** versus **0.6809** for logistic regression and **0.6890**
 for LightGBM on those exact rows. Its Brier score and calibration bins are in
 the report. The `collections_risk` score covers 11,584 rows, but predicts a
 different target; its inverse is a directional proxy only. Its AUC is 0.5484,
-versus 0.6316 and 0.6226 for our models on the same rows. These subset results
+versus 0.6340 and 0.6334 for our models on the same rows. These subset results
 are not directly comparable with the full 54,657-row test metrics.
 
 The channel data is observational: agents chose channels, and customers with
 promises are selected. This backtest **does not establish treatment uplift** or
 show that one channel causes more repayment. The explicit channel weights above
 are assumptions and do not come from the promise-kept model.
+
+## Streamlit and Layer 2 function contract
+
+Import `RecommendationEngine` from `src.decisioning`. Keep one engine instance
+per app process and call `close()` on shutdown. The methods are:
+
+```python
+engine.recommend(customer_id: str, *, as_of: datetime = DEMO_AS_OF) -> dict
+engine.worklist(limit: int = 20) -> list[dict]
+engine.approve(decision_id: str, reviewer: str, reason: str) -> dict
+engine.modify(decision_id: str, reviewer: str, action: str, reason: str) -> dict
+engine.reject(decision_id: str, reviewer: str, reason: str) -> dict
+```
+
+`recommend()` accepts `G-...` or linked CRM IDs such as `AAA-4262`. Example
+selected fields for `engine.recommend('G-39c6b287f70371cd9fc6')`:
+
+```json
+{"decision_id":"<uuid>","customer_id":"G-39c6b287f70371cd9fc6","action":"specialist_review","channel":null,"probabilities":{"promise_kept":0.42,"observed_rpc_by_channel":{"call":0.3977}},"reasons":["collections_cases.hardship_flag triggered mandatory specialist review; normal collection actions are suppressed.","Policy requires specialist review. The three strongest model factors are ..."],"shap_reasons":[{"feature":"card_utilisation","label":"card utilisation in the last completed monthly snapshot","value":0.8,"shap_log_odds":-0.12,"direction":"lowers"}],"status":"pending_review"}
+```
+
+Probabilities and SHAP values above illustrate the shape; display values from
+the returned object. The full object includes all policy checks and all three
+SHAP factors. The first reason for support routing names the triggering flag.
+
+`worklist()` returns linked **open** promises ranked by predicted probability
+of breaking, using only features available before each promise was created. It
+does not approve or execute any action. Example actual leading rows from this
+release (the top reason is the leading SHAP factor):
+
+```json
+[{"ptp_id":"PTP-5510250","customer_id":"G-...","case_id":"CASE-...","probability_break":0.941297,"top_reason":"card utilisation in the last completed monthly snapshot","shap_reasons":[{"feature":"card_utilisation","label":"card utilisation in the last completed monthly snapshot","value":0.9,"shap_log_odds":-0.5,"direction":"lowers"}],"model_version":"promise-kept-v2"}]
+```
+
+Every review call takes a fresh `decision_id` from `recommend()`. Each decision
+may have only one terminal review event. The return object has `event_id`,
+`decision_id`, `reviewed_at`, `reviewer`, `disposition`, `original_action`,
+`final_action`, `reason` and `validation` (the rechecked policy results). The
+three calls yield, for example:
+
+```json
+{"disposition":"approve","original_action":"call","final_action":"call","reviewer":"demo-reviewer"}
+{"disposition":"modify","original_action":"call","final_action":"wait","reviewer":"demo-reviewer"}
+{"disposition":"reject","original_action":"call","final_action":null,"reviewer":"demo-reviewer"}
+```
+
+The restricted fairness report at `artifacts/fairness_evaluation.md` compares
+predicted risk and recommended action mix across gender and citizenship groups
+for a small linked sample. Protected fields are selected only in
+`restricted/fairness.py` for aggregate measurement and never enter the model,
+ranking or explanation paths.
 
 ## Committed evidence and remaining work
 
@@ -199,9 +268,10 @@ both with `python -m src.decisioning.demo`. The source cache and full SQLite aud
 database stay under ignored `local_artifacts/decisioning/`.
 
 `artifacts/promise_model_metrics.json` has class balance, missingness,
-calibration bins, model comparisons and limitations. The 122 KB
-`artifacts/promise_kept_lightgbm.joblib` is the evaluated model. Rebuild both
-with `python -m src.features.training` and `python -m src.decisioning.train`.
+calibration, decile lift, model comparisons and limitations.
+`artifacts/promise_kept_lightgbm.joblib` is the evaluated model. Rebuild these
+with `src.features.training`, `src.features.candidates` and
+`src.decisioning.train` as shown above.
 The full Parquet training table remains ignored under `local_artifacts/`.
 
 Effective hardship-programme eligibility and a maintained regional holiday
