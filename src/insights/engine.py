@@ -123,7 +123,7 @@ class InsightEngine:
         if not api_key:
             return None
         if not openai_key:
-            return OpenAIResponsesPlanner(api_key=api_key, model=os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"), provider="groq")
+            return OpenAIResponsesPlanner(api_key=api_key, model=os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b"), provider="groq")
         return OpenAIResponsesPlanner(api_key=api_key, model=os.environ.get("OPENAI_MODEL", "gpt-5-mini"))
 
     def _register_views(self) -> None:

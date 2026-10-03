@@ -57,7 +57,7 @@ The report records elapsed time, API calls, cache hits, and whether each questio
 
 ## Optional LLM SQL fallback
 
-Set `OPENAI_API_KEY` and, optionally, `OPENAI_MODEL` to enable unknown analytics questions. A Groq-compatible endpoint is also available through `GROQ_API_KEY` and `GROQ_MODEL`. OpenAI takes precedence if both keys are set. Without a key, unknown questions fail closed. The fallback uses structured output, retries transient failures up to three times, and caches successful plans in `local_artifacts/insights/llm_cache.json`. The cache key includes provider, model, and prompt version.
+Set `OPENAI_API_KEY` and, optionally, `OPENAI_MODEL` to enable unknown analytics questions. A Groq-compatible endpoint is also available through `GROQ_API_KEY` and `GROQ_MODEL` (default: `openai/gpt-oss-120b`). OpenAI takes precedence if both keys are set. Without a key, unknown questions fail closed. The fallback uses structured output, retries transient failures up to three times, and caches successful plans in `local_artifacts/insights/llm_cache.json`. The cache key includes provider, model, and prompt version. Groq requests use the `curl` executable because this environment's edge rejects Python HTTP clients.
 
 Every generated query is parsed before execution. It must be one read-only statement over approved views, cannot reference protected or direct-identifier columns, cannot call file/network readers, cannot use a cross join, and is wrapped in a 200-row output limit. Invalid SQL and execution errors return `I couldn't answer this` with a reason; an empty result returns `No rows matched.` with the validated SQL. The system does not guess.
 
