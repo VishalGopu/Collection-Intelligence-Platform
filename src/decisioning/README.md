@@ -169,16 +169,24 @@ The chronological split trains only on promises **created and resolved before
 This excludes 5,014 early promises whose outcomes were recorded after the
 training cutoff. The train set has 137,149 rows (64.30% kept); the test set has
 54,657 rows (37.61% kept). This large shift weakens probability calibration.
-The reported Brier score and ten calibration bins show its size; no calibrated
-probability or causal effect is claimed.
+The model itself fits 121,784 cases created and resolved before 1 May; isotonic
+calibration fits 13,465 different cases created from 1 May and resolved before
+1 July. The July-onward test labels enter neither fit. The reported reliability
+table and Brier score still show residual miscalibration.
 
 | Model | Test rows | ROC AUC | PR-AUC (broken) | Brier | Top 10% broken capture | Top 20% broken capture |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Logistic regression | 54,657 | 0.6770 | 0.7523 | 0.2492 | 13.05% | 25.67% |
-| LightGBM | 54,657 | 0.6811 | 0.7527 | 0.2391 | 12.90% | 25.36% |
+| LightGBM, raw | 54,657 | 0.6781 | 0.7530 | 0.2465 | 12.89% | 25.61% |
+| LightGBM, isotonic | 54,657 | 0.6767 | 0.7463 | 0.2245 | 12.95% | 25.60% |
 
-The signal is modest. The test broken-promise rate is 62.39%; top-decile
-capture only modestly exceeds random ranking. The committed metrics JSON includes
+The signal is modest. The test broken-promise rate is **62.39%**. A constant
+prediction at the observed test rate has Brier **0.2347** (oracle reference);
+using the pre-July train rate as a deployable constant gives **0.3059**.
+Calibrated LightGBM improves on both, but only slightly on the test-rate oracle.
+The logistic baseline uses all eligible pre-July training labels, while
+LightGBM reserves May-June for calibration and therefore fits fewer rows.
+Top-decile capture only modestly exceeds random ranking. The committed metrics JSON includes
 the full reliability table, risk-decile lift table and same-row comparisons to
 pre-promise `model_scores`.
 
@@ -194,11 +202,11 @@ selected features, so the measured gains may be optimistic.
 The supplied `model_scores` comparison uses only scores timestamped **before**
 each promise. Rows marked `uses_protected_attributes=true` or with an unknown
 flag are discarded. The existing `ptp_break` model has 1,881 eligible test
-rows: AUC **0.7129** versus **0.6809** for logistic regression and **0.6890**
+rows: AUC **0.7129** versus **0.6809** for logistic regression and **0.6826**
 for LightGBM on those exact rows. Its Brier score and calibration bins are in
 the report. The `collections_risk` score covers 11,584 rows, but predicts a
 different target; its inverse is a directional proxy only. Its AUC is 0.5484,
-versus 0.6340 and 0.6334 for our models on the same rows. These subset results
+versus 0.6340 and 0.6290 for our models on the same rows. These subset results
 are not directly comparable with the full 54,657-row test metrics.
 
 The channel data is observational: agents chose channels, and customers with
@@ -209,7 +217,9 @@ are assumptions and do not come from the promise-kept model.
 ## Streamlit and Layer 2 function contract
 
 Import `RecommendationEngine` from `src.decisioning`. Keep one engine instance
-per app process and call `close()` on shutdown. The methods are:
+per app process and call `close()` on shutdown. `app.recommend` holds a locked,
+process-cached instance for Streamlit; restart the app after rebuilding data or
+the model. The methods are:
 
 ```python
 engine.recommend(customer_id: str, *, as_of: datetime = DEMO_AS_OF) -> dict
@@ -232,12 +242,39 @@ SHAP factors. The first reason for support routing names the triggering flag.
 
 `worklist()` returns linked **open** promises ranked by predicted probability
 of breaking, using only features available before each promise was created. It
-does not approve or execute any action. Example actual leading rows from this
+does not approve or execute any action. Example actual leading row from this
 release (the top reason is the leading SHAP factor):
 
 ```json
-[{"ptp_id":"PTP-5510250","customer_id":"G-...","case_id":"CASE-...","probability_break":0.941297,"top_reason":"card utilisation in the last completed monthly snapshot","shap_reasons":[{"feature":"card_utilisation","label":"card utilisation in the last completed monthly snapshot","value":0.9,"shap_log_odds":-0.5,"direction":"lowers"}],"model_version":"promise-kept-v2"}]
+[{"ptp_id":"PTP-3511285","customer_id":"G-883e676faa7837d10aa7","case_id":"CS-2026-123687","probability_break":0.852273,"top_reason":"days past due","shap_reasons":[{"feature":"dpd_at_creation","value":127.0,"shap_log_odds":-1.489817,"direction":"lowers"}],"model_version":"promise-kept-v3"}]
 ```
+
+`PTP-5510250` previously had 0.9413 predicted break risk. Its creation-time
+features are DPD 159, bucket 3, overdue 1,311.41, four prior broken promises,
+two broken in 90 days, five recent contacts, zero recent RPCs, card utilisation
+0.8975, bureau risk score 834, earlier kept rate 0 and last employer payroll
+14 days earlier. Source contact (2 Sep), prior outcome (19 Aug), card snapshot
+(30 Jun), bureau pull (15 Apr) and payroll (28 Aug) all precede its 11 Sep
+promise; values are plausible. Isotonic calibration gives it **0.8523** break
+risk. Extreme cases can remain miscalibrated because the kept rate changed
+after the calibration period. SHAP factors explain the raw model margin; the
+isotonic mapping changes probability but not the underlying factor ranking.
+
+For a non-specialist example, `engine.recommend('AAA-4262')` resolves to
+`G-b1714eca2809e88d7587` and proposes **call** (score 0.118139). Policy
+allows call and has no specialist trigger. Afternoon observed call RPC is
+0.397672 versus zero recorded for SMS/email/push. Calibrated promise-kept
+probability is 0.222517. Its top SHAP factors are card utilisation 0.8412
+(lowers keeping), DPD 72 (lowers), and one earlier broken promise (slightly
+raises this model's keeping score). The last direction is a model association,
+not a claim that breaking a promise helps a customer.
+
+On the local Windows benchmark (`python -m src.decisioning.benchmark`), engine
+initialization took **2,134 ms**; the first `recommend('AAA-4262')` took
+**519 ms** and five subsequent calls had **1.9 ms median**. The first
+`worklist(20)` took **438 ms** and warm calls had **0.19 ms median**. A reused
+engine caches frozen contexts, evidence, model scores and the worklist; each
+recommendation still writes a fresh audit decision. Timing varies by machine.
 
 Every review call takes a fresh `decision_id` from `recommend()`. Each decision
 may have only one terminal review event. The return object has `event_id`,
@@ -256,6 +293,15 @@ predicted risk and recommended action mix across gender and citizenship groups
 for a small linked sample. Protected fields are selected only in
 `restricted/fairness.py` for aggregate measurement and never enter the model,
 ranking or explanation paths.
+
+- Measured: predicted break risk and recommended action mix for 120 linked
+  customers, grouped by gender and citizenship.
+- Observed gaps: permanent residents averaged 0.613 risk versus 0.550 for
+  citizens and received 66.7% versus 46.3% specialist reviews; women and men
+  averaged 0.554 and 0.566 risk, with 54.0% and 40.7% specialist reviews.
+- Interpretation: this small selected sample is diagnostic. Policy/consent and
+  support routing affect actions; no causal disparity or parity conclusion is
+  warranted, and protected fields remain measurement-only.
 
 ## Committed evidence and remaining work
 

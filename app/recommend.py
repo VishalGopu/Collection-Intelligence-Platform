@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from functools import lru_cache
+from threading import RLock
 
 from app.customer import C360, DATASET, GOLDEN_ID, ROOT
 
@@ -22,6 +24,10 @@ def connected() -> bool:
     return True
 
 
+_ENGINE_LOCK = RLock()
+
+
+@lru_cache(maxsize=1)
 def _engine():
     from src.decisioning import RecommendationEngine
 
@@ -34,14 +40,12 @@ def _engine():
 def recommend(golden_customer_id: str) -> dict:
     if not GOLDEN_ID.fullmatch(golden_customer_id):
         raise ValueError("Select a published golden customer first")
-    engine = _engine()
-    try:
+    with _ENGINE_LOCK:
+        engine = _engine()
         result = engine.recommend(golden_customer_id)
         if result.get("identity_mode") != "linked_c360":
             raise RuntimeError("Recommendation requires a published linked C360 identity")
         return result
-    finally:
-        engine.close()
 
 
 def review(
@@ -50,8 +54,8 @@ def review(
 ) -> dict:
     if not reviewer.strip() or not reason.strip():
         raise ValueError("Reviewer and reason are required")
-    engine = _engine()
-    try:
+    with _ENGINE_LOCK:
+        engine = _engine()
         if disposition == "approve":
             return engine.approve(decision_id, reviewer, reason)
         if disposition == "modify":
@@ -61,8 +65,12 @@ def review(
         if disposition == "reject":
             return engine.reject(decision_id, reviewer, reason)
         raise ValueError("Unknown review action")
-    finally:
-        engine.close()
+
+
+def worklist(limit: int = 20) -> list[dict]:
+    """Return the shared engine's cached open-promise ranking for Streamlit."""
+    with _ENGINE_LOCK:
+        return _engine().worklist(limit)
 
 
 def latest_audit_rows(golden_customer_id: str, limit: int = 10) -> list[dict]:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from copy import deepcopy
 from pathlib import Path
 from uuid import uuid4
 
@@ -24,6 +25,7 @@ class RecommendationEngine:
                  cache_path=Path('local_artifacts/decisioning/source_cache.duckdb'),
                  audit_path=Path('local_artifacts/decisioning/audit.sqlite'), *, adapter=None):
         supplied_adapter = adapter is not None
+        self._cache_frozen = not supplied_adapter
         self.adapter = adapter or ReleaseAdapter(Path(data_dir), Path(c360_dir), Path(cache_path))
         self.audit = AuditStore(Path(audit_path))
         model_path = Path(__file__).resolve().parent / 'artifacts/promise_kept_lightgbm.joblib'
@@ -31,14 +33,37 @@ class RecommendationEngine:
         if model_path.is_file() and not supplied_adapter:
             from .model import PromiseModel
             self.model = PromiseModel(model_path)
+        self._model_cache = {}
+        self._worklist_frame = None
+        self._worklist_raw = None
+        self._worklist_order = None
+        self._worklist_output = []
+        self._evidence_cache = {}
+        self._context_cache = {}
+        self._broken_cache = {}
 
     def recommend(self, customer_id: str, *, as_of: datetime = DEMO_AS_OF) -> dict:
-        context = self.adapter.context(customer_id, as_of)
+        context_key = (customer_id, as_of.isoformat())
+        if self._cache_frozen and context_key in self._context_cache:
+            context = self._context_cache[context_key]
+        else:
+            context = self.adapter.context(customer_id, as_of)
+            if self._cache_frozen:
+                self._context_cache[context_key] = context
         checks = policy_checks(context)
         local = local_time(context)
-        evidence = channel_evidence(self.adapter.connection, as_of,
-                                    time_band(local.hour) if local else 'afternoon')
-        broken = prior_broken_promises(self.adapter.connection, context.crm_ids, as_of)
+        band = time_band(local.hour) if local else 'afternoon'
+        evidence_key = (as_of.isoformat(), band)
+        if evidence_key not in self._evidence_cache:
+            self._evidence_cache[evidence_key] = channel_evidence(self.adapter.connection, as_of, band)
+        evidence = self._evidence_cache[evidence_key]
+        broken_key = (context.customer_id, as_of.isoformat())
+        if self._cache_frozen and broken_key in self._broken_cache:
+            broken = self._broken_cache[broken_key]
+        else:
+            broken = prior_broken_promises(self.adapter.connection, context.crm_ids, as_of)
+            if self._cache_frozen:
+                self._broken_cache[broken_key] = broken
         if checks['specialist_review']['allowed']:
             choices = [{'action': 'specialist_review', 'score': None, 'channel': None},
                        {'action': 'wait', 'score': None, 'channel': None}]
@@ -53,9 +78,12 @@ class RecommendationEngine:
             reason = routing_reason
         model_result = None
         if self.model is not None and context.linked:
-            features = self.adapter.model_features(context)
-            if features:
-                model_result = self.model.score(features)
+            score_key = (context.customer_id, as_of.isoformat())
+            if score_key not in self._model_cache:
+                features = self.adapter.model_features(context)
+                self._model_cache[score_key] = self.model.score(features) if features else None
+            model_result = self._model_cache[score_key]
+            if model_result:
                 from .model import reason_sentence
                 model_sentence = reason_sentence(model_result['shap_reasons'], choice['action'])
                 reason = (routing_reason + ' ' + model_sentence) if routing_reason else model_sentence
@@ -135,8 +163,9 @@ class RecommendationEngine:
         candidates = Path('local_artifacts/features/open_promise_candidates.parquet')
         if not base.is_file() or not candidates.is_file():
             raise FileNotFoundError('Build open promise features with src.features.training and src.features.candidates')
-        con = self.adapter.connection
-        frame = con.execute(f'''SELECT p.*, c.earlier_kept_rate,c.days_since_last_payroll,
+        if self._worklist_frame is None:
+            con = self.adapter.connection
+            frame = con.execute(f'''SELECT p.*, c.earlier_kept_rate,c.days_since_last_payroll,
             x.golden_customer_id FROM read_parquet({quote(base)}) p
             JOIN read_parquet({quote(candidates)}) c USING(ptp_id)
             JOIN identity_crosswalk x ON x.source_system='crm'
@@ -145,28 +174,29 @@ class RecommendationEngine:
               AND g.dq_status='passed'
             WHERE p.promise_created_ts <= TIMESTAMP '2026-09-28 16:00:00'
             ORDER BY p.ptp_id''').df()
-        if frame.empty:
-            return []
-        if frame.ptp_id.duplicated().any():
-            raise ValueError('Open promise identity is ambiguous')
-        source_dates = ['latest_contact_ts','latest_prior_broken_ts',
-                        'card_snapshot_date','bureau_pull_date','bureau_previous_pull_date']
-        for name in source_dates:
-            if ((frame[name].notna()) &
-                    (frame[name].astype('datetime64[ns]') >= frame.promise_created_ts.astype('datetime64[ns]'))).any():
-                raise ValueError(f'Future {name} in open promise features')
-        columns = list(MODEL_COLUMNS)
-        raw = frame[columns].astype(float)
-        filled = self.model.imputer.transform(raw)
-        risk = 1 - self.model.model.predict_proba(filled)[:, 1]
-        ranked = np.argsort(-risk, kind='stable')[:limit]
-        output = []
-        for index in ranked:
+            if frame.empty:
+                return []
+            if frame.ptp_id.duplicated().any():
+                raise ValueError('Open promise identity is ambiguous')
+            source_dates = ['latest_contact_ts','latest_prior_broken_ts',
+                            'card_snapshot_date','bureau_pull_date','bureau_previous_pull_date']
+            for name in source_dates:
+                if ((frame[name].notna()) &
+                        (frame[name].astype('datetime64[ns]') >= frame.promise_created_ts.astype('datetime64[ns]'))).any():
+                    raise ValueError(f'Future {name} in open promise features')
+            raw = frame[list(MODEL_COLUMNS)].astype(float)
+            filled = self.model.imputer.transform(raw)
+            risk = 1 - self.model.model.predict_proba(filled)[:, 1]
+            self._worklist_frame = frame
+            self._worklist_raw = raw
+            self._worklist_order = np.argsort(-risk, kind='stable')
+        frame, raw = self._worklist_frame, self._worklist_raw
+        for index in self._worklist_order[len(self._worklist_output):limit]:
             row = frame.iloc[int(index)]
             values = {name: (None if np.isnan(raw.iloc[int(index)][name]) else
-                             float(raw.iloc[int(index)][name])) for name in columns}
+                             float(raw.iloc[int(index)][name])) for name in MODEL_COLUMNS}
             scored = self.model.score(values)
-            output.append({
+            self._worklist_output.append({
                 'ptp_id': row.ptp_id, 'customer_id': row.golden_customer_id,
                 'crm_customer_id': row.crm_customer_id, 'case_id': row.case_id,
                 'promise_created_ts': row.promise_created_ts.isoformat(),
@@ -175,7 +205,7 @@ class RecommendationEngine:
                 'top_reason': scored['shap_reasons'][0]['label'],
                 'model_version': scored['model_version'],
             })
-        return output
+        return deepcopy(self._worklist_output[:limit])
 
     def _review(self, decision_id, reviewer, reason, disposition, action=None):
         decision = self.audit.get(decision_id)

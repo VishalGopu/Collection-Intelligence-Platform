@@ -41,6 +41,7 @@ class PromiseModel:
         self.version = saved['version']
         self.imputer = saved['imputer']
         self.model = saved['model']
+        self.calibrator = saved.get('calibrator')
         self.explainer = shap.TreeExplainer(self.model)
 
     def score(self, values: dict) -> dict:
@@ -50,7 +51,11 @@ class PromiseModel:
         raw = np.array([[np.nan if values[key] is None else float(values[key])
                          for key in self.columns]], dtype=float)
         filled = self.imputer.transform(pd.DataFrame(raw, columns=self.columns))
-        probability = float(self.model.predict_proba(filled)[0, 1])
+        raw_probability = float(self.model.predict_proba(filled)[0, 1])
+        if self.calibrator is not None:
+            probability = float(self.calibrator.predict([raw_probability])[0])
+        else:
+            probability = raw_probability
         contributions = self.explainer.shap_values(filled)
         if isinstance(contributions, list):
             contributions = contributions[-1]

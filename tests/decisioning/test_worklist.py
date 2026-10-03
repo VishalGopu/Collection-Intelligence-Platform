@@ -22,5 +22,6 @@ def test_open_worklist_is_sorted_and_has_actual_shap_reasons():
         assert all(row['top_reason'] == row['shap_reasons'][0]['label'] for row in rows)
         assert [row['probability_break'] for row in rows] == sorted(
             [row['probability_break'] for row in rows], reverse=True)
+        assert engine.worklist(3) == rows
     finally:
         engine.close()

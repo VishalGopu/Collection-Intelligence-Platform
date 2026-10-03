@@ -1,4 +1,5 @@
 import csv
+import json
 from pathlib import Path
 
 import duckdb
@@ -6,22 +7,30 @@ import pytest
 
 from src.decisioning.model import PromiseModel, reason_sentence, DEFAULT_MODEL
 from src.decisioning.train import compare_existing_scores
-from src.features.training import FEATURE_COLUMNS
 
 
 def test_committed_model_uses_allowlisted_columns_and_true_shap_reasons():
     if not DEFAULT_MODEL.is_file():
         pytest.skip('Model artifact has not been built')
     model = PromiseModel()
+    assert model.calibrator is not None
     values = {name: 1.0 for name in model.columns}
     scored = model.score(values)
     assert 0 < scored['probability'] < 1
     assert len(scored['shap_reasons']) == 3
-    assert all(reason['feature'] in FEATURE_COLUMNS for reason in scored['shap_reasons'])
+    assert all(reason['feature'] in model.columns for reason in scored['shap_reasons'])
     sentence = reason_sentence(scored['shap_reasons'], 'call')
     assert all(reason['label'] in sentence for reason in scored['shap_reasons'])
     with pytest.raises(ValueError):
         model.score({**values, 'vulnerability_flag': 1})
+
+
+def test_committed_calibration_beats_constant_test_rate_reference():
+    report = json.loads((DEFAULT_MODEL.parent / 'promise_model_metrics.json').read_text())
+    assert report['base_break_rate'] > 0
+    assert report['calibration_method']['no_test_labels_used_to_fit'] is True
+    assert report['lightgbm']['calibration']['brier'] < report['constant_prediction_brier']['test_rate_oracle']
+    assert report['lightgbm']['reliability_table']
 
 
 def test_existing_score_comparison_rejects_future_and_protected_scores(tmp_path: Path):

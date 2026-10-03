@@ -1,7 +1,8 @@
 """Chronological promise-kept baseline and LightGBM evaluation.
 
-Rebuild with ``python -m src.features.training`` followed by
-``python -m src.decisioning.train``. The generated data stays ignored; the
+Rebuild with ``python -m src.features.training``,
+``python -m src.features.candidates`` and ``python -m src.decisioning.train``.
+The generated data stays ignored; the
 small model and evaluation report are committed under artifacts/.
 """
 
@@ -18,6 +19,7 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer
+from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (average_precision_score, brier_score_loss,
                              log_loss, roc_auc_score)
@@ -28,7 +30,8 @@ from src.features.training import FEATURE_COLUMNS, APPROVED_CANDIDATES, model_co
 
 
 SPLIT = pd.Timestamp('2026-07-01')
-MODEL_VERSION = 'promise-kept-v2'
+MODEL_VERSION = 'promise-kept-v3'
+CALIBRATION_START = pd.Timestamp('2026-05-01')
 MODEL_COLUMNS = tuple(column for column in FEATURE_COLUMNS if column != 'bureau_score_change') + APPROVED_CANDIDATES
 
 
@@ -163,8 +166,13 @@ def train(table_path: Path, output_dir: Path, data_dir: Path,
         train_mask = ((frame.promise_created_ts < SPLIT) & (frame.status_ts < SPLIT))
         test_mask = (frame.promise_created_ts >= SPLIT)
         training = frame.loc[train_mask]
+        fitting = frame.loc[(frame.promise_created_ts < CALIBRATION_START) &
+                            (frame.status_ts < CALIBRATION_START)]
+        calibration_rows = frame.loc[(frame.promise_created_ts >= CALIBRATION_START) &
+                                     (frame.promise_created_ts < SPLIT) &
+                                     (frame.status_ts < SPLIT)]
         testing = frame.loc[test_mask]
-        if len(training) == 0 or len(testing) == 0:
+        if len(training) == 0 or len(testing) == 0 or len(fitting) == 0 or len(calibration_rows) == 0:
             raise ValueError('Chronological split produced an empty set')
         x_train = training.loc[:, list(MODEL_COLUMNS)].astype(float)
         x_test = testing.loc[:, list(MODEL_COLUMNS)].astype(float)
@@ -175,13 +183,18 @@ def train(table_path: Path, output_dir: Path, data_dir: Path,
         baseline.fit(x_train, y_train)
         base_probability = baseline.predict_proba(x_test)[:, 1]
         imputer = SimpleImputer(strategy='median')
-        filled_train = imputer.fit_transform(x_train)
+        filled_train = imputer.fit_transform(fitting.loc[:, list(MODEL_COLUMNS)].astype(float))
+        filled_calibration = imputer.transform(calibration_rows.loc[:, list(MODEL_COLUMNS)].astype(float))
         filled_test = imputer.transform(x_test)
         boosted = lgb.LGBMClassifier(n_estimators=180, learning_rate=0.04,
                                      num_leaves=15, max_depth=5, min_child_samples=80,
                                      verbosity=-1, random_state=17, n_jobs=4)
-        boosted.fit(filled_train, y_train)
-        boost_probability = boosted.predict_proba(filled_test)[:, 1]
+        boosted.fit(filled_train, fitting.label_kept.astype(int))
+        raw_calibration_probability = boosted.predict_proba(filled_calibration)[:, 1]
+        raw_test_probability = boosted.predict_proba(filled_test)[:, 1]
+        calibrator = IsotonicRegression(out_of_bounds='clip').fit(
+            raw_calibration_probability, calibration_rows.label_kept.astype(int))
+        boost_probability = calibrator.predict(raw_test_probability)
         predictions = {ptp_id: (float(base_probability[i]), float(boost_probability[i]))
                        for i, ptp_id in enumerate(testing.ptp_id)}
         scores = compare_existing_scores(con, table_path, data_dir, predictions)
@@ -202,12 +215,28 @@ def train(table_path: Path, output_dir: Path, data_dir: Path,
                 'test': {'rows': len(testing), 'kept': int(y_test.sum()),
                          'broken': int((1-y_test).sum()), 'kept_rate': round(float(y_test.mean()), 6)},
             },
+            'base_break_rate': round(float((1-y_test).mean()), 6),
+            'constant_prediction_brier': {
+                'test_rate_oracle': round(float(brier_score_loss(y_test, np.full(len(y_test), y_test.mean()))), 6),
+                'train_rate_deployment': round(float(brier_score_loss(y_test, np.full(len(y_test), y_train.mean()))), 6),
+                'definition': 'Predict the same kept rate for every test promise; oracle uses the observed test rate, deployment uses the pre-July train rate.',
+            },
+            'calibration_method': {
+                'name': 'Isotonic regression on raw LightGBM kept probability',
+                'model_fit_rows': len(fitting), 'model_fit_created_before': '2026-05-01',
+                'calibration_rows': len(calibration_rows),
+                'calibration_created_from': '2026-05-01',
+                'calibration_resolved_before': '2026-07-01',
+                'test_created_from': '2026-07-01',
+                'no_test_labels_used_to_fit': True,
+            },
             'features': list(MODEL_COLUMNS), 'training_validation': checked,
             'missingness': {column: {'train_fraction': round(float(x_train[column].isna().mean()), 6),
                                      'test_fraction': round(float(x_test[column].isna().mean()), 6)}
                             for column in MODEL_COLUMNS},
             'logistic_regression': evaluate(y_test, base_probability),
             'lightgbm': evaluate(y_test, boost_probability),
+            'lightgbm_uncalibrated': evaluate(y_test, raw_test_probability),
             'existing_model_scores': scores,
             'signal_assessment': (
                 'Signal remains modest: held-out ROC AUC is around 0.68 and calibration is weak '
@@ -220,10 +249,11 @@ def train(table_path: Path, output_dir: Path, data_dir: Path,
                 'Protected and routing-only attributes, deposits and transactions are excluded from the model matrix.',
                 'Employer payroll uses employer_flag=Y; benefit/other-income rows are excluded. The same time holdout selected features, so measured gains may be optimistic.',
                 'Promise amount/overdue was rejected after a near-perfect synthetic-label association; likely target leakage or data-generation artifact.',
+                'Isotonic calibration uses a separate pre-July period; the later test set still has a lower kept rate, so probabilities can remain miscalibrated.',
             ],
         }
         artifact = {'version': MODEL_VERSION, 'columns': MODEL_COLUMNS,
-                    'imputer': imputer, 'model': boosted}
+                    'imputer': imputer, 'model': boosted, 'calibrator': calibrator}
         joblib.dump(artifact, output_dir / 'promise_kept_lightgbm.joblib', compress=3)
         (output_dir / 'promise_model_metrics.json').write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
         return report

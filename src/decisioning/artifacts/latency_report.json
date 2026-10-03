@@ -1,0 +1,30 @@
+{
+  "measured_at_utc": "2026-10-03T17:50:34.402998+00:00",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "python": "3.14.3",
+  "units": "milliseconds, wall-clock",
+  "initialization_ms": 2134.039,
+  "recommend_AAA_4262": {
+    "cold_ms": 518.58,
+    "warm_calls_ms": [
+      1.915,
+      2.406,
+      1.787,
+      2.116,
+      1.798
+    ],
+    "warm_median_ms": 1.915
+  },
+  "worklist_20": {
+    "cold_ms": 437.786,
+    "warm_calls_ms": [
+      0.299,
+      0.195,
+      0.193,
+      0.187,
+      0.183
+    ],
+    "warm_median_ms": 0.193
+  },
+  "scope": "One reused engine, frozen snapshot, local data and SQLite audit; timings vary by host."
+}

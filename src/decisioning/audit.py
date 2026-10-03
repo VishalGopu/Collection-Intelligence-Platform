@@ -12,7 +12,8 @@ from uuid import uuid4
 class AuditStore:
     def __init__(self, path: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.connection = sqlite3.connect(path)
+        # The Streamlit adapter serializes access to its shared engine with a lock.
+        self.connection = sqlite3.connect(path, check_same_thread=False)
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.executescript("""
             CREATE TABLE IF NOT EXISTS decisions (

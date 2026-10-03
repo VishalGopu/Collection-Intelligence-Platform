@@ -23,7 +23,7 @@ def test_linked_hero_golden_and_crm_ids_receive_same_model_and_policy(tmp_path):
                'contact_history.hardship_mentioned_flag', 'customers.vulnerability_flag',
                'collections_cases.vulnerable_customer_flag',
                'contact_history.vulnerability_disclosed_flag'))
-        assert golden['promise_model_version'] == crm['promise_model_version'] == 'promise-kept-v2'
+        assert golden['promise_model_version'] == crm['promise_model_version'] == 'promise-kept-v3'
         assert len(golden['shap_reasons']) == len(crm['shap_reasons']) == 3
         assert golden['probabilities']['promise_kept'] == crm['probabilities']['promise_kept']
         assert all(not golden['policy_checks'][action]['allowed'] for action in
