@@ -5,6 +5,16 @@
   "refresh": "batch for hackathon build",
   "refresh_frequency": "once per dataset release; no scheduled daily refresh in this build",
   "allowed_uses": ["collections context", "governed analytics", "approved feature generation"],
+  "schema": {
+    "golden_customers": {
+      "grain": "one row per golden_customer_id",
+      "columns": "see outputs.golden_customers.required_columns"
+    },
+    "identity_crosswalk": {
+      "grain": "one row per source_system and source_customer_id",
+      "columns": "see outputs.identity_crosswalk.required_columns"
+    }
+  },
   "prohibited_uses": ["protected-attribute decisioning", "unscoped PII export", "customer action without human review"],
   "outputs": {
     "golden_customers": {
