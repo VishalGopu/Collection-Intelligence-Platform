@@ -55,12 +55,15 @@ class OpenAIResponsesPlanner:
         self.timeout_seconds = timeout_seconds
         self.opener = opener
         self.sleeper = sleeper
+        self.cache_hits = 0
+        self.api_calls = 0
 
     def plan(self, question: str, catalog: str) -> SQLPlan:
         prompt = self._prompt(question, catalog)
         key = hashlib.sha256(f"{self.provider}\n{self.model}\n{self.prompt_version}\n{prompt}".encode()).hexdigest()
         cache = self._read_cache()
         if key in cache:
+            self.cache_hits += 1
             return self._decode_plan(cache[key])
 
         payload = {"model": self.model}
@@ -100,6 +103,7 @@ class OpenAIResponsesPlanner:
                 method="POST",
             )
             try:
+                self.api_calls += 1
                 with self.opener(request, timeout=self.timeout_seconds) as response:
                     result = json.loads(response.read().decode("utf-8"))
                 raw_plan = self._output_text(result)
@@ -108,7 +112,10 @@ class OpenAIResponsesPlanner:
                 self._write_cache(cache)
                 return plan
             except HTTPError as exc:
-                last_error = exc
+                detail = self._http_error_detail(exc)
+                last_error = PlannerError(f"HTTP {exc.code}: {detail}")
+                if detail in {"credit_balance_exhausted", "insufficient_quota"}:
+                    break
                 if exc.code not in {408, 409, 429, 500, 502, 503, 504}:
                     break
             except (URLError, TimeoutError, json.JSONDecodeError, KeyError, ValueError) as exc:
@@ -116,6 +123,14 @@ class OpenAIResponsesPlanner:
             if attempt < self.max_attempts:
                 self.sleeper(min(8.0, 0.5 * (2 ** (attempt - 1))) + random.random() * 0.25)
         raise PlannerError(f"LLM planner failed after {self.max_attempts} attempts: {last_error}")
+
+    @staticmethod
+    def _http_error_detail(exc: HTTPError) -> str:
+        try:
+            error = json.loads(exc.read().decode("utf-8")).get("error", {})
+            return str(error.get("code") or error.get("type") or "request_rejected")[:100]
+        except (OSError, ValueError, AttributeError):
+            return "request_rejected"
 
     @staticmethod
     def _prompt(question: str, catalog: str) -> str:
