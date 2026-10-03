@@ -10,9 +10,10 @@ from src.features.contacts import PROTECTED_FIELDS, ROUTING_ONLY_FIELDS
 
 
 @pytest.fixture
-def adapter():
+def adapter(tmp_path):
     instance = ReleaseAdapter.__new__(ReleaseAdapter)
     instance.has_c360 = True
+    instance.data_dir = tmp_path
     con = instance.connection = duckdb.connect()
     con.execute('''CREATE TABLE identity_crosswalk (
         source_system VARCHAR, source_customer_id VARCHAR, golden_customer_id VARCHAR,
@@ -38,7 +39,8 @@ def adapter():
         permitted_call_start_local='07:00', permitted_call_end_local='21:00')
     case = dict.fromkeys(CASE_COLUMNS, 'false')
     case.update(case_id='CASE-1', coll_customer_ref='COL-1', case_status='open',
-                contact_cap_7d='3', dispute_status='', primary_product='card', current_dpd='30', case_open_date='2026-08-01')
+                contact_cap_7d='3', dispute_status='', primary_product='card', current_dpd='30', case_open_date='2026-08-01',
+                total_overdue='100')
     con.execute(f"INSERT INTO customers_state VALUES ({','.join('?' for _ in CUSTOMER_COLUMNS)})", list(profile.values()))
     con.execute(f"INSERT INTO cases_state VALUES ({','.join('?' for _ in CASE_COLUMNS)})", list(case.values()))
     con.execute('''CREATE TABLE contact_evidence (
@@ -66,6 +68,14 @@ def test_adapter_preserves_leading_zero_id_and_linked_customer(adapter):
     assert context.crm_ids == ['0001']
     assert context.case_ids == ['CASE-1']
     assert policy_checks(context)['call']['allowed']
+
+
+def test_golden_id_resolves_the_same_linked_crm_record(adapter):
+    by_crm = adapter.context('0001', DEMO_AS_OF)
+    by_golden = adapter.context('G-1', DEMO_AS_OF)
+    assert by_golden.customer_id == by_crm.customer_id
+    assert by_golden.crm_ids == ['0001']
+    assert by_golden.case_ids == by_crm.case_ids
 
 
 def test_unapproved_identity_cannot_recommend(adapter):
@@ -116,6 +126,42 @@ def test_card_fraud_alert_uses_approved_link(adapter):
 def test_current_snapshot_cannot_be_used_as_historical_state(adapter):
     with pytest.raises(ValueError, match='frozen'):
         adapter.context('0001', datetime.fromisoformat('2026-09-01T16:00:00+00:00'))
+
+
+def test_live_model_features_use_earlier_snapshots_and_no_deposit_inputs(adapter):
+    con = adapter.connection
+    cards = adapter.data_dir / 'data/account_monthly_snapshot/year=2026'
+    bureau = adapter.data_dir / 'data/bureau_history/year=2026'
+    cards.mkdir(parents=True)
+    bureau.mkdir(parents=True)
+    con.execute("""COPY (SELECT * FROM (VALUES
+        ('0001','CARD-1','card','2026-08-31','500','1000'),
+        ('0001','CARD-1','card','2026-09-28','990','1000'))
+        AS t(crm_customer_id,account_id,product_type,month_end_date,balance,limit_or_original_amount))
+        TO ? (FORMAT PARQUET)""", [str(cards / 'card.parquet')])
+    con.execute("""COPY (SELECT * FROM (VALUES
+        ('CORE-1',DATE '2026-08-15',750),
+        ('CORE-1',DATE '2026-09-15',760),
+        ('CORE-1',DATE '2026-09-29',900))
+        AS t(bank_subject_ref,pull_date,risk_score))
+        TO ? (FORMAT PARQUET)""", [str(bureau / 'bureau.parquet')])
+    con.execute("""CREATE TABLE promise_evidence (
+        crm_customer_id VARCHAR,ptp_id VARCHAR,ptp_created_ts TIMESTAMP,
+        status_ts TIMESTAMP,ptp_status VARCHAR)""")
+    con.execute("""INSERT INTO promise_evidence VALUES
+        ('0001','P-1','2026-08-01','2026-09-01','broken'),
+        ('0001','P-2','2026-09-01','2026-09-29','broken')""")
+    con.execute("""INSERT INTO contact_evidence VALUES
+        ('C-1','0001','CASE-1','outbound','call','2026-09-20',12,true,1),
+        ('C-2','0001','CASE-1','outbound','call','2026-09-29',12,true,1)""")
+    context = adapter.context('G-1', DEMO_AS_OF)
+    features = adapter.model_features(context)
+    assert features['card_utilisation'] == 0.5
+    assert features['bureau_risk_score'] == 760
+    assert features['bureau_score_change'] == 10
+    assert features['prior_broken_ptp_count_at_creation'] == 1
+    assert features['recent_contacts_30d'] == 1
+    assert 'ccb_deposit_flag' not in features
 
 
 def test_protected_inputs_not_selected_and_ranking_projection_has_no_safeguards():

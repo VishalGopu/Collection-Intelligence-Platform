@@ -1,10 +1,14 @@
-# Layer 3/4: Next Best Action — thin end-to-end flow
+# Layer 3/4: Next Best Action
 
 `RecommendationEngine.recommend(customer_id)` now reads an approved identity,
 applies policy controls, routes support cases to internal specialist review,
 ranks permitted channels, returns a factual plain-English reason, and persists
 the recommendation. `approve`, `modify`, and `reject` write append-only review
 events. No contact is sent and no payment plan is activated.
+
+The promise-kept model adds a probability and the three largest **actual SHAP**
+factors for linked customers. It estimates keeping a hypothetical promise if
+one were made at the snapshot date. It does not decide the contact channel.
 
 ## Reproduce
 
@@ -13,9 +17,11 @@ From the repository root, using the environment described in the dataset guide:
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r src/decisioning/requirements.txt pytest
 .\.venv\Scripts\python.exe src/c360/build.py
+.\.venv\Scripts\python.exe -m src.features.training
+.\.venv\Scripts\python.exe -m src.decisioning.train
 .\.venv\Scripts\python.exe -m pytest tests/features tests/decisioning -q
 .\.venv\Scripts\python.exe -m src.decisioning.demo
-.\.venv\Scripts\python.exe -m src.decisioning.cli recommend AAA-4262
+.\.venv\Scripts\python.exe -m src.decisioning.cli recommend G-39c6b287f70371cd9fc6
 ```
 
 Python API:
@@ -25,7 +31,7 @@ from src.decisioning import RecommendationEngine
 
 engine = RecommendationEngine()
 try:
-    result = engine.recommend("AAA-4262")
+    result = engine.recommend("G-39c6b287f70371cd9fc6")
     event = engine.approve(result["decision_id"], "reviewer-1", "Reviewed evidence and policy checks")
 finally:
     engine.close()
@@ -62,6 +68,7 @@ real-data demos use **linked** customers:
 | --- | --- | --- |
 | AAA-4262 | G-b1714eca2809e88d7587 | Call |
 | AAA-7546 | G-c4a6b6148266a0018109 | Specialist review; proposed certified agent AG-1584 |
+| RUB-7738 | G-39c6b287f70371cd9fc6 | Documented C360 hero; same specialist action for CRM or golden ID |
 
 Default prediction time is **2026-09-28 16:00 UTC**, explicitly tied to the frozen
 release snapshot. Current-state inputs are never used for dates outside that
@@ -126,9 +133,12 @@ wait score = 0.02
 
 Only policy-permitted actions enter ranking. A channel without observed RPC/cost
 evidence is not ranked. Ties are resolved deterministically by action name.
-The explanation quotes actual counts/rates/costs and identifies assumed weights.
-`probabilities.promise_kept` is `null` until a model is trained; the supplied RPC
-values are empirical rates, not personal outcome predictions.
+The empirical RPC rates and assumed weights are returned in structured fields.
+`probabilities.promise_kept` comes from the separate LightGBM model. Its
+plain-English reason uses the actual top three SHAP factors and policy facts;
+the user can inspect feature names, values, directions and log-odds
+contributions in `shap_reasons`. For specialist cases, the specialist route
+remains mandatory regardless of the model probability or explanation.
 
 These rates are **observational**: agents chose the channels, so the ranking
 does not estimate causal treatment effects. In the demo afternoon band, call
@@ -138,6 +148,45 @@ no benefit. This metric favours calls under the current assumptions. Historical
 event timestamps establish the implemented cutoff, but not a complete source
 arrival/availability history. Current-profile fields are used only for the
 snapshot demo's safeguards, not historical training.
+
+## Promise-kept model and backtest
+
+`src/features/training.py` builds a one-row-per-promise Parquet table with ten
+allowlisted numeric features. It uses contacts, earlier broken promises, prior
+monthly card snapshots and bureau pulls dated before each promise. The
+source-provided DPD, overdue balance and prior broken count are explicitly
+recorded at promise creation. Labels come from later observed `kept` or `broken`
+outcomes. No present-day account balances or protected/support flags enter
+the training matrix. Source availability timestamps are incomplete, and the
+historical bureau join uses a later C360 identity mapping.
+
+The chronological split trains only on promises **created and resolved before
+1 July 2026**, then tests promises created from 1 July through the snapshot.
+This excludes 5,014 early promises whose outcomes were recorded after the
+training cutoff. The train set has 137,149 rows (64.30% kept); the test set has
+54,657 rows (37.61% kept). This large shift weakens probability calibration.
+The reported Brier score and ten calibration bins show its size; no calibrated
+probability or causal effect is claimed.
+
+| Model | Test rows | ROC AUC | Average precision | Brier | Calibration error |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Logistic regression | 54,657 | 0.6734 | 0.5416 | 0.2534 | 0.1908 |
+| LightGBM | 54,657 | 0.6746 | 0.5447 | 0.2464 | 0.1577 |
+
+The supplied `model_scores` comparison uses only scores timestamped **before**
+each promise. Rows marked `uses_protected_attributes=true` or with an unknown
+flag are discarded. The existing `ptp_break` model has 1,881 eligible test
+rows: AUC **0.7129** versus **0.6808** for logistic regression and **0.6849**
+for LightGBM on those exact rows. Its Brier score and calibration bins are in
+the report. The `collections_risk` score covers 11,584 rows, but predicts a
+different target; its inverse is a directional proxy only. Its AUC is 0.5484,
+versus 0.6316 and 0.6226 for our models on the same rows. These subset results
+are not directly comparable with the full 54,657-row test metrics.
+
+The channel data is observational: agents chose channels, and customers with
+promises are selected. This backtest **does not establish treatment uplift** or
+show that one channel causes more repayment. The explicit channel weights above
+are assumptions and do not come from the promise-kept model.
 
 ## Committed evidence and remaining work
 
@@ -149,11 +198,14 @@ customer IDs without names, contact details or protected attributes. Rebuild
 both with `python -m src.decisioning.demo`. The source cache and full SQLite audit
 database stay under ignored `local_artifacts/decisioning/`.
 
-Next: point-in-time per-promise Parquet training data; chronological logistic
-regression and LightGBM evaluations; pre-promise `model_scores` comparisons
-excluding `uses_protected_attributes=true` (and unknown flags); SHAP explanations;
-effective hardship programme eligibility; a committed metrics report and model
-rebuild script. There is no trained model or SHAP explanation in this slice.
+`artifacts/promise_model_metrics.json` has class balance, missingness,
+calibration bins, model comparisons and limitations. The 122 KB
+`artifacts/promise_kept_lightgbm.joblib` is the evaluated model. Rebuild both
+with `python -m src.features.training` and `python -m src.decisioning.train`.
+The full Parquet training table remains ignored under `local_artifacts/`.
+
+Effective hardship-programme eligibility and a maintained regional holiday
+calendar are still needed for use beyond the frozen demo.
 
 ## Integration and ownership
 
@@ -162,9 +214,8 @@ Task A edits only `src/features/`, `src/decisioning/`, `tests/features/` and
 Merge `origin/main` into `feature/task-a` regularly and check the adapter contract,
 real-data demo and regression tests before merging into `main`.
 
-At base commit `40f3801`, two existing Layer 2 transcript-summary tests fail on
-Windows because `strftime("%-d %b")` is unsupported. The same failures were
-reproduced in a detached checkout of unchanged `origin/main`. Task A does not
-modify Layer 2; that owner can use a portable day/month formatter. Until fixed,
-the full-suite integration gate is blocked and this branch must not merge into
-`main` under the agreed passing-check rule.
+Two existing Layer 2 transcript-summary tests fail on Windows because
+`strftime("%-d %b")` is unsupported. They were reproduced on unchanged
+`origin/main`, and Task A tests pass. Task A's thin flow was merged into main
+after the user accepted those known Layer 2 failures. Layer 1/2 source and
+shared contracts were not modified by Task A.
