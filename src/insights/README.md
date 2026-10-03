@@ -53,12 +53,20 @@ To run a newly released question set with columns `question_id` and `question_te
 .venv/bin/python -m src.insights.regression --questions path/to/new_questions.csv
 ```
 
-The report records elapsed time, API calls, cache hits, and whether each question was answered, refused, empty, or unable to run. Questions without published gold answers are recorded without pretending that execution proves correctness.
+The report records setup, per-question API, DuckDB, and other time, API calls, cache hits, and whether each question was answered, refused, empty, or unable to run. The new-question run also compares 10 queries with independent hand-checked reference SQL and writes a full question/SQL/answer table to `question_results.md`. Questions without published gold answers are recorded without pretending that execution proves correctness.
+
+For a reproducible 60-question mixed workload (24 new, 35 released, one additional question):
+
+```bash
+.venv/bin/python -m src.insights.regression --workload-60 --output-dir local_artifacts/insights/performance_60
+```
+
+The runner keeps a local DuckDB cache of the three large CSV tables and builds the schema catalog once per run. Both the DuckDB cache and LLM response cache live under ignored `local_artifacts/`; the first DuckDB cache build costs extra time. The 60-question workload includes cached and deterministic routes, so its timing is not a proxy for 60 fresh LLM calls. Questions run sequentially by default to avoid amplifying Groq's per-model rate limits.
 
 ## Optional LLM SQL fallback
 
-Set `OPENAI_API_KEY` and, optionally, `OPENAI_MODEL` to enable unknown analytics questions. A Groq-compatible endpoint is also available through `GROQ_API_KEY` and `GROQ_MODEL` (default: `openai/gpt-oss-120b`). OpenAI takes precedence if both keys are set. Without a key, unknown questions fail closed. The fallback uses structured output, retries transient failures up to three times, and caches successful plans in `local_artifacts/insights/llm_cache.json`. The cache key includes provider, model, and prompt version. Groq requests use the `curl` executable because this environment's edge rejects Python HTTP clients.
+Set `OPENAI_API_KEY` and, optionally, `OPENAI_MODEL` to enable unknown analytics questions. A Groq-compatible endpoint is also available through `GROQ_API_KEY`, `GROQ_MODEL` (default: `openai/gpt-oss-120b`), and `GROQ_FALLBACK_MODEL` (default: `openai/gpt-oss-20b`). OpenAI takes precedence if both keys are set. Without a key, unknown questions fail closed. The fallback uses structured output, retries transient failures up to three times (respecting Groq's `Retry-After` on 429), switches to the backup model on failure, and caches successful plans in `local_artifacts/insights/llm_cache.json`. The cache key includes provider, both models, and prompt version. Groq requests use the `curl` executable because this environment's edge rejects Python HTTP clients.
 
 Every generated query is parsed before execution. It must be one read-only statement over approved views, cannot reference protected or direct-identifier columns, cannot call file/network readers, cannot use a cross join, and is wrapped in a 200-row output limit. Invalid SQL and execution errors return `I couldn't answer this` with a reason; an empty result returns `No rows matched.` with the validated SQL. The system does not guess.
 
-AI tools used: OpenAI API-compatible structured SQL planning through the configured Groq-compatible endpoint, with deterministic DuckDB execution and local safety validation. No API key or response cache is committed.
+AI tools used: Groq API with `openai/gpt-oss-120b` and `openai/gpt-oss-20b` fallback for SQL planning only; answers come from validated, read-only DuckDB query results. OpenAI API is an optional alternate SQL planner. No API key or response cache is committed.

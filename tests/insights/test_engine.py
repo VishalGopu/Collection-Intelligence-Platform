@@ -198,3 +198,34 @@ def test_llm_empty_result_preserves_sql_and_reports_no_rows(fixture_root: Path) 
     ).answer("An unknown analytics question")
     assert card.answer == "No rows matched."
     assert "current_dpd > 1000" in card.sql_or_sources
+
+
+def test_local_hour_sql_uses_certified_hour_grain() -> None:
+    sql = (
+        "SELECT DATE_TRUNC('HOUR', contact_ts_local) AS local_hour, COUNT(*) "
+        "FROM contact_history GROUP BY local_hour"
+    )
+    normalized = InsightEngine._normalize_contact_hour_sql(
+        "How many outbound calls by local hour?", sql
+    )
+    assert "contact_hour_local AS local_hour" in normalized
+    assert "DATE_TRUNC" not in normalized
+
+
+def test_hour_sql_uses_local_timestamp() -> None:
+    sql = (
+        "SELECT HOUR(contact_ts_utc) AS hour, COUNT(*) FROM contact_history "
+        "WHERE contact_ts_utc >= DATE '2026-09-01' GROUP BY hour"
+    )
+    normalized = InsightEngine._normalize_contact_hour_sql(
+        "How many outbound calls by hour in September?", sql
+    )
+    assert "contact_hour_local AS hour" in normalized
+    assert "contact_ts_local >=" in normalized
+    assert "contact_ts_utc" not in normalized
+
+
+def test_hour_normalization_does_not_hide_second_statement() -> None:
+    sql = "SELECT HOUR(contact_ts_local) FROM contact_history; DROP TABLE contact_history"
+    normalized = InsightEngine._normalize_contact_hour_sql("Calls by hour?", sql)
+    assert normalized == sql

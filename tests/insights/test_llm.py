@@ -82,3 +82,42 @@ def test_exhausted_quota_does_not_retry(tmp_path) -> None:
     else:
         raise AssertionError("Expected quota error")
     assert len(attempts) == 1
+
+
+def test_groq_rate_limit_uses_fallback_without_wait(tmp_path) -> None:
+    models = []
+    sleeps = []
+
+    def opener(request, **kwargs):
+        payload = json.loads(request.data)
+        models.append(payload["model"])
+        if payload["model"] == "primary":
+            raise HTTPError("https://api.groq.com", 429, "rate limited", {"Retry-After": "2.5"}, io.BytesIO(b'{"error":{"code":"rate_limit_exceeded"}}'))
+        return FakeResponse({"choices": [{"message": {"content": json.dumps({"sql": "SELECT count(*) FROM collections_cases", "metric_id": None})}}]})
+
+    planner = OpenAIResponsesPlanner(
+        "test-key", "primary", provider="groq", fallback_model="backup",
+        cache_path=tmp_path / "cache.json", max_attempts=2, opener=opener, sleeper=sleeps.append,
+    )
+    assert planner.plan("How many cases?", "collections_cases(case_id)").sql.startswith("SELECT")
+    assert models == ["primary", "backup"]
+    assert sleeps == []
+    assert planner.last_model == "backup"
+
+
+def test_groq_retry_after_is_respected_without_backup(tmp_path) -> None:
+    sleeps = []
+    attempts = []
+
+    def opener(request, **kwargs):
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise HTTPError("https://api.groq.com", 429, "rate limited", {"Retry-After": "2.5"}, io.BytesIO(b'{"error":{"code":"rate_limit_exceeded"}}'))
+        return FakeResponse({"choices": [{"message": {"content": json.dumps({"sql": "SELECT count(*) FROM collections_cases", "metric_id": None})}}]})
+
+    planner = OpenAIResponsesPlanner(
+        "test-key", "primary", provider="groq", cache_path=tmp_path / "cache.json",
+        max_attempts=2, opener=opener, sleeper=sleeps.append,
+    )
+    assert planner.plan("How many cases?", "collections_cases(case_id)").sql.startswith("SELECT")
+    assert sleeps == [2.5]

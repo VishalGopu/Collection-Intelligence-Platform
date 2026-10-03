@@ -44,5 +44,6 @@ Open the local URL printed by Streamlit. The Customer tab starts with `G-39c6b28
 
 ## AI tools used (submission draft)
 
-- OpenAI API: optional structured SQL planning for new Layer 2 analytics questions. Generated SQL is validated and executed read-only in DuckDB; current live API validation is pending available account credits.
+- Groq API (`openai/gpt-oss-120b`, fallback `openai/gpt-oss-20b`): SQL planning only for new Layer 2 analytics questions. The application validates and runs the SQL read-only in DuckDB, then builds answers solely from query results. A 24-question live API run has been completed.
+- OpenAI API: optional alternative provider for the same SQL-planning-only path; not used for the Groq live run.
 - Codex: implementation, test creation, and development workflow assistance.

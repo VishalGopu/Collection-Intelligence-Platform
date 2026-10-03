@@ -8,6 +8,7 @@ import json
 import re
 import time
 from pathlib import Path
+from .reference_sql import REFERENCE_SQL, compare_rows
 
 from .engine import InsightEngine
 
@@ -43,16 +44,50 @@ def compare_answer(actual: str, expected: str, refused: bool) -> tuple[bool, str
     return True, f"text fact coverage {coverage:.0%}"
 
 
-def run(dataset_root: Path, output_dir: Path, questions_path: Path | None = None) -> dict:
+def run(dataset_root: Path, output_dir: Path, questions_path: Path | None = None, workload_60: bool = False) -> dict:
     started = time.monotonic()
-    engine = InsightEngine(dataset_root)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    cache_database = output_dir.parent / "regression" / "query_cache.duckdb" if workload_60 else output_dir / "query_cache.duckdb"
+    cache_database.parent.mkdir(parents=True, exist_ok=True)
+    engine = InsightEngine(dataset_root, cache_database=cache_database)
+    setup_seconds = time.monotonic() - started
     answers_path = output_dir / ("custom_answers.csv" if questions_path else "dev_answers.csv")
-    if questions_path is None:
+    profiles = []
+    if questions_path is None and not workload_60:
         cards = engine.run_benchmark(answers_path, split="dev")
     else:
-        with questions_path.open(newline="", encoding="utf-8") as handle:
+        source = questions_path or Path("tests/insights/new_questions.csv")
+        with source.open(newline="", encoding="utf-8") as handle:
             rows = list(csv.DictReader(handle))
-        cards = [engine.answer(row["question_text"], row.get("question_id") or None) for row in rows]
+        if workload_60:
+            with (dataset_root / "data" / "benchmark_questions.csv").open(newline="", encoding="utf-8") as handle:
+                released = list(csv.DictReader(handle))
+            rows.extend({"question_id": "PERF-" + row["question_id"], "question_text": row["question_text"]} for row in released)
+            rows.append({"question_id": "PERF-060", "question_text": "How many open collections cases are in each queue?"})
+            if len(rows) != 60:
+                raise ValueError(f"Expected 60 workload questions, got {len(rows)}")
+        cards = []
+        for row in rows:
+            question_started = time.monotonic()
+            before_api = getattr(engine.llm_planner, "api_seconds", 0.0)
+            before_calls = getattr(engine.llm_planner, "api_calls", 0)
+            before_hits = getattr(engine.llm_planner, "cache_hits", 0)
+            before_query = engine.query_seconds
+            card = engine.answer(row["question_text"], row.get("question_id") or None)
+            cards.append(card)
+            print(f"{len(cards)}/{len(rows)} {card.question_id}: {card.mode}", flush=True)
+            elapsed = time.monotonic() - question_started
+            api_time = getattr(engine.llm_planner, "api_seconds", 0.0) - before_api
+            query_time = engine.query_seconds - before_query
+            profiles.append({
+                "question_id": card.question_id,
+                "elapsed_seconds": round(elapsed, 3),
+                "api_seconds": round(api_time, 3),
+                "duckdb_seconds": round(query_time, 3),
+                "other_seconds": round(max(0.0, elapsed - api_time - query_time), 3),
+                "api_calls": getattr(engine.llm_planner, "api_calls", 0) - before_calls,
+                "cache_hits": getattr(engine.llm_planner, "cache_hits", 0) - before_hits,
+            })
         answers_path.parent.mkdir(parents=True, exist_ok=True)
         with answers_path.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=["question_id", "answer", "sql_or_sources", "refused"])
@@ -74,12 +109,39 @@ def run(dataset_root: Path, output_dir: Path, questions_path: Path | None = None
         "passed": sum(item["passed"] for item in results),
         "total": len(results),
         "elapsed_seconds": round(time.monotonic() - started, 2),
+        "setup_seconds": round(setup_seconds, 2),
+        "api_seconds": round(getattr(engine.llm_planner, "api_seconds", 0.0), 2),
+        "duckdb_seconds": round(engine.query_seconds, 2),
         "api_calls": getattr(engine.llm_planner, "api_calls", 0),
         "cache_hits": getattr(engine.llm_planner, "cache_hits", 0),
         "results": results,
+        "profiles": profiles,
     }
+    references = []
+    for card in cards:
+        if card.question_id not in REFERENCE_SQL:
+            continue
+        sql = REFERENCE_SQL[card.question_id]
+        try:
+            expected = engine.connection.execute(sql).fetchall()
+            actual = engine.connection.execute(card.sql_or_sources).fetchall() if not card.refused else []
+            matched = compare_rows(actual, expected)
+            reason = "result rows match" if matched else "result rows differ"
+        except Exception as exc:
+            matched, reason = False, str(exc)[:160]
+        references.append({"question_id": card.question_id, "matched": matched, "reason": reason, "reference_sql": sql})
+    report["references"] = references
+    report["reference_matches"] = sum(row["matched"] for row in references)
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "regression_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    if questions_path:
+        def cell(value: str) -> str:
+            return value.replace("|", "\\|").replace("\n", "<br>")
+        lines = ["# Live question results", "", "| ID | Question | SQL or evidence | Answer | Status |", "| --- | --- | --- | --- | --- |"]
+        for card in cards:
+            status = "refused" if card.refused else ("no rows matched" if card.mode == "empty" else "answered")
+            lines.append(f"| {card.question_id} | {cell(card.question)} | {cell(card.sql_or_sources)} | {cell(card.answer)} | {status} |")
+        (output_dir / "question_results.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return report
 
 
@@ -88,8 +150,9 @@ def main() -> None:
     parser.add_argument("--dataset-root", type=Path, default=Path("maple_data/maple_collections_release"))
     parser.add_argument("--output-dir", type=Path, default=Path("local_artifacts/insights/regression"))
     parser.add_argument("--questions", type=Path, help="Optional CSV with question_id and question_text")
+    parser.add_argument("--workload-60", action="store_true", help="Run 24 new plus 35 released questions and one new queue question")
     args = parser.parse_args()
-    report = run(args.dataset_root, args.output_dir, args.questions)
+    report = run(args.dataset_root, args.output_dir, args.questions, args.workload_60)
     print(json.dumps(report, indent=2))
     if report["passed"] != report["total"]:
         raise SystemExit(1)
