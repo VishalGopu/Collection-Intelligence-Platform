@@ -14,7 +14,7 @@ from .policy import DecisionContext
 
 
 SNAPSHOT_DATE = date(2026, 9, 28)
-CACHE_VERSION = "thin-flow-v2"
+CACHE_VERSION = "thin-flow-v3"
 
 # Safety flags below stay in policy context; none are supplied to the ranker.
 CUSTOMER_COLUMNS = (
@@ -344,9 +344,10 @@ class ReleaseAdapter:
         Only linked source IDs are used; no safeguard flag, protected attribute,
         deposit or transaction amount is included.
         """
-        from src.features.training import FEATURE_COLUMNS, model_columns
+        from src.features.training import model_columns
+        from .train import MODEL_COLUMNS
 
-        model_columns(FEATURE_COLUMNS)
+        model_columns(MODEL_COLUMNS)
         if not context.linked or not context.case_ids:
             return {}
         con = self.connection
@@ -369,11 +370,22 @@ class ReleaseAdapter:
               AND ptp_created_ts<? AND status_ts<?
               AND status_ts>=? - INTERVAL '90 days'""",
             [context.crm_ids, cutoff, cutoff, cutoff]).fetchone()[0]
+        earlier = con.execute("""SELECT count(*) FILTER (WHERE ptp_status='kept'), count(*)
+            FROM promise_evidence WHERE crm_customer_id IN (SELECT unnest(?))
+              AND ptp_status IN ('kept','broken') AND ptp_created_ts<? AND status_ts<?""",
+            [context.crm_ids, cutoff, cutoff]).fetchone()
         contacts = con.execute("""SELECT count(*),count(*) FILTER (WHERE rpc_flag)
             FROM contact_evidence WHERE crm_customer_id IN (SELECT unnest(?))
               AND direction='outbound' AND contact_ts_utc<?
               AND contact_ts_utc>=? - INTERVAL '30 days'""",
             [context.crm_ids, cutoff, cutoff]).fetchone()
+        salary_path = self.data_dir / 'data/salary_credit_history' / '*' / '*.parquet'
+        payroll_date = None
+        if list((self.data_dir / 'data/salary_credit_history').glob('*/*.parquet')):
+            payroll_date = con.execute(f"""SELECT max(last_credit_date)
+                FROM read_parquet({quote_path(salary_path)}, hive_partitioning=true)
+                WHERE crm_customer_id IN (SELECT unnest(?)) AND employer_flag='Y'
+                  AND last_credit_date < ?""", [context.crm_ids, cutoff.date()]).fetchone()[0]
         snapshots = self.data_dir / 'data/account_monthly_snapshot' / '*' / '*.parquet'
         card = con.execute(f"""SELECT arg_max(
                 try_cast(balance AS DOUBLE)/nullif(try_cast(limit_or_original_amount AS DOUBLE),0),
@@ -411,7 +423,8 @@ class ReleaseAdapter:
             'broken_promises_90d': broken90,
             'recent_contacts_30d': contacts[0], 'recent_rpc_30d': contacts[1],
             'card_utilisation': card, 'bureau_risk_score': bureau_score,
-            'bureau_score_change': bureau_delta,
+            'earlier_kept_rate': earlier[0] / earlier[1] if earlier[1] else None,
+            'days_since_last_payroll': (cutoff.date() - payroll_date).days if payroll_date else None,
         }
         model_columns(result)
         return result

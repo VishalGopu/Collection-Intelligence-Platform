@@ -10,7 +10,8 @@ import numpy as np
 import pandas as pd
 import shap
 
-from src.features.training import FEATURE_COLUMNS, model_columns
+from src.features.training import model_columns
+from .train import MODEL_COLUMNS
 
 
 DEFAULT_MODEL = Path(__file__).resolve().parent / 'artifacts/promise_kept_lightgbm.joblib'
@@ -25,6 +26,8 @@ LABELS = {
     'card_utilisation': 'card utilisation in the last completed monthly snapshot',
     'bureau_risk_score': 'last earlier bureau risk score',
     'bureau_score_change': 'earlier bureau score change',
+    'earlier_kept_rate': 'share of earlier resolved promises kept',
+    'days_since_last_payroll': 'days since last employer payroll credit',
 }
 
 
@@ -32,7 +35,7 @@ class PromiseModel:
     def __init__(self, path: Path = DEFAULT_MODEL):
         saved = joblib.load(path)
         self.columns = tuple(saved['columns'])
-        if self.columns != FEATURE_COLUMNS:
+        if self.columns != MODEL_COLUMNS:
             raise ValueError('Saved model feature contract differs from the active definition')
         model_columns(self.columns)
         self.version = saved['version']
@@ -78,7 +81,7 @@ class PromiseModel:
 
 
 def reason_sentence(factors: list[dict], action: str) -> str:
-    if len(factors) != 3 or any(row['feature'] not in FEATURE_COLUMNS for row in factors):
+    if len(factors) != 3 or any(row['feature'] not in MODEL_COLUMNS for row in factors):
         raise ValueError('Only the actual three model factors may be explained')
     clauses = []
     for factor in factors:

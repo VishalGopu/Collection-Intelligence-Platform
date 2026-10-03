@@ -1,0 +1,208 @@
+{
+  "generated_at": "2026-10-03T17:19:54.548651+00:00",
+  "train_rows": 137149,
+  "test_rows": 54657,
+  "candidate_missingness": {
+    "days_since_last_contact": {
+      "train": 0.276531,
+      "test": 0.17436
+    },
+    "earlier_kept_rate": {
+      "train": 0.723738,
+      "test": 0.600637
+    },
+    "promise_amount_to_overdue": {
+      "train": 0.0,
+      "test": 0.0
+    },
+    "days_since_last_payroll": {
+      "train": 0.896879,
+      "test": 0.761714
+    }
+  },
+  "variants": {
+    "baseline": {
+      "features": [
+        "dpd_at_creation",
+        "dpd_bucket_at_creation",
+        "overdue_at_creation",
+        "prior_broken_ptp_count_at_creation",
+        "broken_promises_90d",
+        "recent_contacts_30d",
+        "recent_rpc_30d",
+        "card_utilisation",
+        "bureau_risk_score",
+        "bureau_score_change"
+      ],
+      "roc_auc": 0.674574,
+      "pr_auc_broken": 0.748016,
+      "brier": 0.24636,
+      "top_10_capture": 0.129212,
+      "top_20_capture": 0.25165
+    },
+    "plus_days_since_last_contact": {
+      "features": [
+        "dpd_at_creation",
+        "dpd_bucket_at_creation",
+        "overdue_at_creation",
+        "prior_broken_ptp_count_at_creation",
+        "broken_promises_90d",
+        "recent_contacts_30d",
+        "recent_rpc_30d",
+        "card_utilisation",
+        "bureau_risk_score",
+        "bureau_score_change",
+        "days_since_last_contact"
+      ],
+      "roc_auc": 0.674879,
+      "pr_auc_broken": 0.748258,
+      "brier": 0.246387,
+      "top_10_capture": 0.128596,
+      "top_20_capture": 0.251914
+    },
+    "plus_earlier_kept_rate": {
+      "features": [
+        "dpd_at_creation",
+        "dpd_bucket_at_creation",
+        "overdue_at_creation",
+        "prior_broken_ptp_count_at_creation",
+        "broken_promises_90d",
+        "recent_contacts_30d",
+        "recent_rpc_30d",
+        "card_utilisation",
+        "bureau_risk_score",
+        "bureau_score_change",
+        "earlier_kept_rate"
+      ],
+      "roc_auc": 0.675037,
+      "pr_auc_broken": 0.748631,
+      "brier": 0.246302,
+      "top_10_capture": 0.129065,
+      "top_20_capture": 0.251914
+    },
+    "plus_promise_amount_to_overdue": {
+      "features": [
+        "dpd_at_creation",
+        "dpd_bucket_at_creation",
+        "overdue_at_creation",
+        "prior_broken_ptp_count_at_creation",
+        "broken_promises_90d",
+        "recent_contacts_30d",
+        "recent_rpc_30d",
+        "card_utilisation",
+        "bureau_risk_score",
+        "bureau_score_change",
+        "promise_amount_to_overdue"
+      ],
+      "roc_auc": 0.941582,
+      "pr_auc_broken": 0.962158,
+      "brier": 0.086819,
+      "top_10_capture": 0.160239,
+      "top_20_capture": 0.319012
+    },
+    "plus_days_since_last_payroll": {
+      "features": [
+        "dpd_at_creation",
+        "dpd_bucket_at_creation",
+        "overdue_at_creation",
+        "prior_broken_ptp_count_at_creation",
+        "broken_promises_90d",
+        "recent_contacts_30d",
+        "recent_rpc_30d",
+        "card_utilisation",
+        "bureau_risk_score",
+        "bureau_score_change",
+        "days_since_last_payroll"
+      ],
+      "roc_auc": 0.675779,
+      "pr_auc_broken": 0.749064,
+      "brier": 0.242552,
+      "top_10_capture": 0.128098,
+      "top_20_capture": 0.252588
+    },
+    "all_candidates": {
+      "features": [
+        "dpd_at_creation",
+        "dpd_bucket_at_creation",
+        "overdue_at_creation",
+        "prior_broken_ptp_count_at_creation",
+        "broken_promises_90d",
+        "recent_contacts_30d",
+        "recent_rpc_30d",
+        "card_utilisation",
+        "bureau_risk_score",
+        "bureau_score_change",
+        "days_since_last_contact",
+        "earlier_kept_rate",
+        "promise_amount_to_overdue",
+        "days_since_last_payroll"
+      ],
+      "roc_auc": 0.941646,
+      "pr_auc_broken": 0.962273,
+      "brier": 0.08692,
+      "top_10_capture": 0.160151,
+      "top_20_capture": 0.318807
+    },
+    "without_card_utilisation": {
+      "features": [
+        "dpd_at_creation",
+        "dpd_bucket_at_creation",
+        "overdue_at_creation",
+        "prior_broken_ptp_count_at_creation",
+        "broken_promises_90d",
+        "recent_contacts_30d",
+        "recent_rpc_30d",
+        "bureau_risk_score",
+        "bureau_score_change"
+      ],
+      "roc_auc": 0.657362,
+      "pr_auc_broken": 0.742549,
+      "brier": 0.268463,
+      "top_10_capture": 0.1293,
+      "top_20_capture": 0.253351
+    },
+    "without_bureau_score_change": {
+      "features": [
+        "dpd_at_creation",
+        "dpd_bucket_at_creation",
+        "overdue_at_creation",
+        "prior_broken_ptp_count_at_creation",
+        "broken_promises_90d",
+        "recent_contacts_30d",
+        "recent_rpc_30d",
+        "card_utilisation",
+        "bureau_risk_score"
+      ],
+      "roc_auc": 0.680212,
+      "pr_auc_broken": 0.75256,
+      "brier": 0.242682,
+      "top_10_capture": 0.129564,
+      "top_20_capture": 0.252207
+    },
+    "selected_candidate": {
+      "features": [
+        "dpd_at_creation",
+        "dpd_bucket_at_creation",
+        "overdue_at_creation",
+        "prior_broken_ptp_count_at_creation",
+        "broken_promises_90d",
+        "recent_contacts_30d",
+        "recent_rpc_30d",
+        "card_utilisation",
+        "bureau_risk_score",
+        "earlier_kept_rate",
+        "days_since_last_payroll"
+      ],
+      "roc_auc": 0.68112,
+      "pr_auc_broken": 0.752665,
+      "brier": 0.239136,
+      "top_10_capture": 0.128977,
+      "top_20_capture": 0.253644
+    }
+  },
+  "limits": [
+    "Same time holdout used for feature selection; gains may be optimistic.",
+    "Payroll uses employer_flag=Y only; other income and benefits are excluded.",
+    "The holdout measures prediction, not treatment uplift."
+  ]
+}

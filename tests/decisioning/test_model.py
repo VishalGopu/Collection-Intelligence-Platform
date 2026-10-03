@@ -13,7 +13,7 @@ def test_committed_model_uses_allowlisted_columns_and_true_shap_reasons():
     if not DEFAULT_MODEL.is_file():
         pytest.skip('Model artifact has not been built')
     model = PromiseModel()
-    values = {name: 1.0 for name in FEATURE_COLUMNS}
+    values = {name: 1.0 for name in model.columns}
     scored = model.score(values)
     assert 0 < scored['probability'] < 1
     assert len(scored['shap_reasons']) == 3

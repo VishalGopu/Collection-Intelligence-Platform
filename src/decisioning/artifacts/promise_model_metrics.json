@@ -1,6 +1,6 @@
 {
-  "model_version": "promise-kept-v1",
-  "generated_at": "2026-10-03T17:14:38.339221+00:00",
+  "model_version": "promise-kept-v2",
+  "generated_at": "2026-10-03T17:22:24.265955+00:00",
   "label": "1=kept, 0=broken; open, cancelled and partially kept excluded",
   "data_snapshot_date": "2026-09-28",
   "split": {
@@ -34,7 +34,8 @@
     "recent_rpc_30d",
     "card_utilisation",
     "bureau_risk_score",
-    "bureau_score_change"
+    "earlier_kept_rate",
+    "days_since_last_payroll"
   ],
   "training_validation": {
     "rows": 196820,
@@ -90,102 +91,106 @@
       "train_fraction": 0.456008,
       "test_fraction": 0.158626
     },
-    "bureau_score_change": {
-      "train_fraction": 0.522548,
-      "test_fraction": 0.199846
+    "earlier_kept_rate": {
+      "train_fraction": 0.723738,
+      "test_fraction": 0.600637
+    },
+    "days_since_last_payroll": {
+      "train_fraction": 0.896879,
+      "test_fraction": 0.761714
     }
   },
   "logistic_regression": {
     "rows": 54657,
     "kept_rate": 0.376127,
-    "roc_auc": 0.673407,
-    "average_precision": 0.541615,
-    "pr_auc_broken": 0.754941,
+    "roc_auc": 0.677025,
+    "average_precision": 0.545079,
+    "pr_auc_broken": 0.752349,
     "pr_auc_definition": "average precision, positive class = broken promise",
-    "log_loss": 0.700582,
+    "log_loss": 0.692369,
     "calibration": {
-      "brier": 0.253428,
-      "expected_calibration_error": 0.190796,
+      "brier": 0.249195,
+      "expected_calibration_error": 0.180992,
       "bins": [
         {
           "range": [
             0.0,
             0.1
           ],
-          "count": 8,
-          "mean_predicted": 0.085489,
-          "observed_kept": 0.125
+          "count": 393,
+          "mean_predicted": 0.068396,
+          "observed_kept": 0.201018
         },
         {
           "range": [
             0.1,
             0.2
           ],
-          "count": 193,
-          "mean_predicted": 0.159422,
-          "observed_kept": 0.134715
+          "count": 1051,
+          "mean_predicted": 0.153489,
+          "observed_kept": 0.21313
         },
         {
           "range": [
             0.2,
             0.3
           ],
-          "count": 1359,
-          "mean_predicted": 0.266335,
-          "observed_kept": 0.161884
+          "count": 2020,
+          "mean_predicted": 0.257978,
+          "observed_kept": 0.175743
         },
         {
           "range": [
             0.3,
             0.4
           ],
-          "count": 5487,
-          "mean_predicted": 0.355753,
-          "observed_kept": 0.18717
+          "count": 5435,
+          "mean_predicted": 0.355649,
+          "observed_kept": 0.188408
         },
         {
           "range": [
             0.4,
             0.5
           ],
-          "count": 7578,
-          "mean_predicted": 0.451448,
-          "observed_kept": 0.248878
+          "count": 7437,
+          "mean_predicted": 0.450912,
+          "observed_kept": 0.24916
         },
         {
           "range": [
             0.5,
             0.6
           ],
-          "count": 13790,
-          "mean_predicted": 0.555677,
-          "observed_kept": 0.306599
+          "count": 12779,
+          "mean_predicted": 0.555671,
+          "observed_kept": 0.311996
         },
         {
           "range": [
             0.6,
             0.7
           ],
-          "count": 19430,
-          "mean_predicted": 0.649104,
-          "observed_kept": 0.456562
+          "count": 18578,
+          "mean_predicted": 0.649588,
+          "observed_kept": 0.465551
         },
         {
           "range": [
             0.7,
             0.8
           ],
-          "count": 6811,
-          "mean_predicted": 0.725757,
-          "observed_kept": 0.631038
+          "count": 6962,
+          "mean_predicted": 0.725917,
+          "observed_kept": 0.629848
         },
         {
           "range": [
             0.8,
             0.9
           ],
-          "count": 1,
-          "mean_predicted": 0.801419,
+          "count": 2,
+          "mean_predicted": 0.808306,
           "observed_kept": 1.0
         }
       ]
@@ -196,80 +201,80 @@
           0.0,
           0.1
         ],
-        "count": 8,
-        "mean_predicted": 0.085489,
-        "observed_kept": 0.125
+        "count": 393,
+        "mean_predicted": 0.068396,
+        "observed_kept": 0.201018
       },
       {
         "range": [
           0.1,
           0.2
         ],
-        "count": 193,
-        "mean_predicted": 0.159422,
-        "observed_kept": 0.134715
+        "count": 1051,
+        "mean_predicted": 0.153489,
+        "observed_kept": 0.21313
       },
       {
         "range": [
           0.2,
           0.3
         ],
-        "count": 1359,
-        "mean_predicted": 0.266335,
-        "observed_kept": 0.161884
+        "count": 2020,
+        "mean_predicted": 0.257978,
+        "observed_kept": 0.175743
       },
       {
         "range": [
           0.3,
           0.4
         ],
-        "count": 5487,
-        "mean_predicted": 0.355753,
-        "observed_kept": 0.18717
+        "count": 5435,
+        "mean_predicted": 0.355649,
+        "observed_kept": 0.188408
       },
       {
         "range": [
           0.4,
           0.5
         ],
-        "count": 7578,
-        "mean_predicted": 0.451448,
-        "observed_kept": 0.248878
+        "count": 7437,
+        "mean_predicted": 0.450912,
+        "observed_kept": 0.24916
       },
       {
         "range": [
           0.5,
           0.6
         ],
-        "count": 13790,
-        "mean_predicted": 0.555677,
-        "observed_kept": 0.306599
+        "count": 12779,
+        "mean_predicted": 0.555671,
+        "observed_kept": 0.311996
       },
       {
         "range": [
           0.6,
           0.7
         ],
-        "count": 19430,
-        "mean_predicted": 0.649104,
-        "observed_kept": 0.456562
+        "count": 18578,
+        "mean_predicted": 0.649588,
+        "observed_kept": 0.465551
       },
       {
         "range": [
           0.7,
           0.8
         ],
-        "count": 6811,
-        "mean_predicted": 0.725757,
-        "observed_kept": 0.631038
+        "count": 6962,
+        "mean_predicted": 0.725917,
+        "observed_kept": 0.629848
       },
       {
         "range": [
           0.8,
           0.9
         ],
-        "count": 1,
-        "mean_predicted": 0.801419,
+        "count": 2,
+        "mean_predicted": 0.808306,
         "observed_kept": 1.0
       }
     ],
@@ -278,96 +283,96 @@
         {
           "risk_rank_decile": 1,
           "rows": 5465,
-          "mean_predicted_break_risk": 0.68319,
-          "observed_break_rate": 0.830009,
-          "share_of_all_broken": 0.133024,
-          "lift_vs_test_break_rate": 1.330415
+          "mean_predicted_break_risk": 0.751319,
+          "observed_break_rate": 0.813907,
+          "share_of_all_broken": 0.130444,
+          "lift_vs_test_break_rate": 1.304604
         },
         {
           "risk_rank_decile": 2,
           "rows": 5466,
-          "mean_predicted_break_risk": 0.584575,
-          "observed_break_rate": 0.765276,
-          "share_of_all_broken": 0.122672,
-          "lift_vs_test_break_rate": 1.226655
+          "mean_predicted_break_risk": 0.611367,
+          "observed_break_rate": 0.787596,
+          "share_of_all_broken": 0.12625,
+          "lift_vs_test_break_rate": 1.262431
         },
         {
           "risk_rank_decile": 3,
           "rows": 5466,
-          "mean_predicted_break_risk": 0.51214,
-          "observed_break_rate": 0.733626,
-          "share_of_all_broken": 0.117599,
-          "lift_vs_test_break_rate": 1.175923
+          "mean_predicted_break_risk": 0.534776,
+          "observed_break_rate": 0.749177,
+          "share_of_all_broken": 0.120091,
+          "lift_vs_test_break_rate": 1.200849
         },
         {
           "risk_rank_decile": 4,
           "rows": 5465,
-          "mean_predicted_break_risk": 0.459434,
-          "observed_break_rate": 0.722964,
-          "share_of_all_broken": 0.115869,
-          "lift_vs_test_break_rate": 1.158833
+          "mean_predicted_break_risk": 0.471929,
+          "observed_break_rate": 0.715096,
+          "share_of_all_broken": 0.114607,
+          "lift_vs_test_break_rate": 1.146221
         },
         {
           "risk_rank_decile": 5,
           "rows": 5466,
-          "mean_predicted_break_risk": 0.422346,
-          "observed_break_rate": 0.66813,
-          "share_of_all_broken": 0.1071,
-          "lift_vs_test_break_rate": 1.07094
+          "mean_predicted_break_risk": 0.428876,
+          "observed_break_rate": 0.675265,
+          "share_of_all_broken": 0.108244,
+          "lift_vs_test_break_rate": 1.082377
         },
         {
           "risk_rank_decile": 6,
           "rows": 5466,
-          "mean_predicted_break_risk": 0.391183,
-          "observed_break_rate": 0.628064,
-          "share_of_all_broken": 0.100677,
-          "lift_vs_test_break_rate": 1.006719
+          "mean_predicted_break_risk": 0.394735,
+          "observed_break_rate": 0.622576,
+          "share_of_all_broken": 0.099798,
+          "lift_vs_test_break_rate": 0.997922
         },
         {
           "risk_rank_decile": 7,
           "rows": 5465,
-          "mean_predicted_break_risk": 0.363909,
-          "observed_break_rate": 0.57054,
-          "share_of_all_broken": 0.09144,
-          "lift_vs_test_break_rate": 0.914513
+          "mean_predicted_break_risk": 0.365073,
+          "observed_break_rate": 0.560842,
+          "share_of_all_broken": 0.089885,
+          "lift_vs_test_break_rate": 0.898968
         },
         {
           "risk_rank_decile": 8,
           "rows": 5466,
-          "mean_predicted_break_risk": 0.337398,
-          "observed_break_rate": 0.507867,
-          "share_of_all_broken": 0.08141,
-          "lift_vs_test_break_rate": 0.814055
+          "mean_predicted_break_risk": 0.337559,
+          "observed_break_rate": 0.51116,
+          "share_of_all_broken": 0.081938,
+          "lift_vs_test_break_rate": 0.819334
         },
         {
           "risk_rank_decile": 9,
           "rows": 5466,
-          "mean_predicted_break_risk": 0.307886,
-          "observed_break_rate": 0.447859,
-          "share_of_all_broken": 0.071791,
-          "lift_vs_test_break_rate": 0.71787
+          "mean_predicted_break_risk": 0.307165,
+          "observed_break_rate": 0.448591,
+          "share_of_all_broken": 0.071908,
+          "lift_vs_test_break_rate": 0.719043
         },
         {
           "risk_rank_decile": 10,
           "rows": 5466,
-          "mean_predicted_break_risk": 0.268934,
-          "observed_break_rate": 0.364435,
-          "share_of_all_broken": 0.058418,
-          "lift_vs_test_break_rate": 0.584149
+          "mean_predicted_break_risk": 0.268197,
+          "observed_break_rate": 0.354555,
+          "share_of_all_broken": 0.056835,
+          "lift_vs_test_break_rate": 0.568314
         }
       ],
       "capture": {
         "top_10_percent": {
           "rows": 5466,
-          "broken_promises": 4537,
-          "share_of_all_broken": 0.133054,
-          "lift_vs_test_break_rate": 1.330465
+          "broken_promises": 4449,
+          "share_of_all_broken": 0.130473,
+          "lift_vs_test_break_rate": 1.304659
         },
         "top_20_percent": {
           "rows": 10932,
-          "broken_promises": 8720,
-          "share_of_all_broken": 0.255726,
-          "lift_vs_test_break_rate": 1.27856
+          "broken_promises": 8753,
+          "share_of_all_broken": 0.256694,
+          "lift_vs_test_break_rate": 1.283398
         }
       }
     }
@@ -375,95 +380,95 @@
   "lightgbm": {
     "rows": 54657,
     "kept_rate": 0.376127,
-    "roc_auc": 0.674574,
-    "average_precision": 0.54473,
-    "pr_auc_broken": 0.748016,
+    "roc_auc": 0.68112,
+    "average_precision": 0.551121,
+    "pr_auc_broken": 0.752665,
     "pr_auc_definition": "average precision, positive class = broken promise",
-    "log_loss": 0.68536,
+    "log_loss": 0.670366,
     "calibration": {
-      "brier": 0.24636,
-      "expected_calibration_error": 0.1577,
+      "brier": 0.239136,
+      "expected_calibration_error": 0.140221,
       "bins": [
         {
           "range": [
             0.0,
             0.1
           ],
-          "count": 27,
-          "mean_predicted": 0.086284,
-          "observed_kept": 0.222222
+          "count": 119,
+          "mean_predicted": 0.089037,
+          "observed_kept": 0.168067
         },
         {
           "range": [
             0.1,
             0.2
           ],
-          "count": 4244,
-          "mean_predicted": 0.172506,
-          "observed_kept": 0.197691
+          "count": 5239,
+          "mean_predicted": 0.167089,
+          "observed_kept": 0.196602
         },
         {
           "range": [
             0.2,
             0.3
           ],
-          "count": 6748,
-          "mean_predicted": 0.238617,
-          "observed_kept": 0.225252
+          "count": 7995,
+          "mean_predicted": 0.241673,
+          "observed_kept": 0.228768
         },
         {
           "range": [
             0.3,
             0.4
           ],
-          "count": 1386,
-          "mean_predicted": 0.346676,
-          "observed_kept": 0.267677
+          "count": 2161,
+          "mean_predicted": 0.347628,
+          "observed_kept": 0.24572
         },
         {
           "range": [
             0.4,
             0.5
           ],
-          "count": 3979,
-          "mean_predicted": 0.457829,
-          "observed_kept": 0.223423
+          "count": 3659,
+          "mean_predicted": 0.453062,
+          "observed_kept": 0.242963
         },
         {
           "range": [
             0.5,
             0.6
           ],
-          "count": 13425,
-          "mean_predicted": 0.568689,
-          "observed_kept": 0.304507
+          "count": 11486,
+          "mean_predicted": 0.56953,
+          "observed_kept": 0.308724
         },
         {
           "range": [
             0.6,
             0.7
           ],
-          "count": 17837,
-          "mean_predicted": 0.642526,
-          "observed_kept": 0.475865
+          "count": 17238,
+          "mean_predicted": 0.643339,
+          "observed_kept": 0.4895
         },
         {
           "range": [
             0.7,
             0.8
           ],
-          "count": 6878,
-          "mean_predicted": 0.742499,
-          "observed_kept": 0.619075
+          "count": 6578,
+          "mean_predicted": 0.743073,
+          "observed_kept": 0.629675
         },
         {
           "range": [
             0.8,
             0.9
           ],
-          "count": 133,
-          "mean_predicted": 0.806097,
-          "observed_kept": 0.744361
+          "count": 182,
+          "mean_predicted": 0.810083,
+          "observed_kept": 0.730769
         }
       ]
     },
@@ -473,81 +478,81 @@
           0.0,
           0.1
         ],
-        "count": 27,
-        "mean_predicted": 0.086284,
-        "observed_kept": 0.222222
+        "count": 119,
+        "mean_predicted": 0.089037,
+        "observed_kept": 0.168067
       },
       {
         "range": [
           0.1,
           0.2
         ],
-        "count": 4244,
-        "mean_predicted": 0.172506,
-        "observed_kept": 0.197691
+        "count": 5239,
+        "mean_predicted": 0.167089,
+        "observed_kept": 0.196602
       },
       {
         "range": [
           0.2,
           0.3
         ],
-        "count": 6748,
-        "mean_predicted": 0.238617,
-        "observed_kept": 0.225252
+        "count": 7995,
+        "mean_predicted": 0.241673,
+        "observed_kept": 0.228768
       },
       {
         "range": [
           0.3,
           0.4
         ],
-        "count": 1386,
-        "mean_predicted": 0.346676,
-        "observed_kept": 0.267677
+        "count": 2161,
+        "mean_predicted": 0.347628,
+        "observed_kept": 0.24572
       },
       {
         "range": [
           0.4,
           0.5
         ],
-        "count": 3979,
-        "mean_predicted": 0.457829,
-        "observed_kept": 0.223423
+        "count": 3659,
+        "mean_predicted": 0.453062,
+        "observed_kept": 0.242963
       },
       {
         "range": [
           0.5,
           0.6
         ],
-        "count": 13425,
-        "mean_predicted": 0.568689,
-        "observed_kept": 0.304507
+        "count": 11486,
+        "mean_predicted": 0.56953,
+        "observed_kept": 0.308724
       },
       {
         "range": [
           0.6,
           0.7
         ],
-        "count": 17837,
-        "mean_predicted": 0.642526,
-        "observed_kept": 0.475865
+        "count": 17238,
+        "mean_predicted": 0.643339,
+        "observed_kept": 0.4895
       },
       {
         "range": [
           0.7,
           0.8
         ],
-        "count": 6878,
-        "mean_predicted": 0.742499,
-        "observed_kept": 0.619075
+        "count": 6578,
+        "mean_predicted": 0.743073,
+        "observed_kept": 0.629675
       },
       {
         "range": [
           0.8,
           0.9
         ],
-        "count": 133,
-        "mean_predicted": 0.806097,
-        "observed_kept": 0.744361
+        "count": 182,
+        "mean_predicted": 0.810083,
+        "observed_kept": 0.730769
       }
     ],
     "lift_by_decile": {
@@ -555,96 +560,96 @@
         {
           "risk_rank_decile": 1,
           "rows": 5465,
-          "mean_predicted_break_risk": 0.820204,
-          "observed_break_rate": 0.806038,
-          "share_of_all_broken": 0.129183,
-          "lift_vs_test_break_rate": 1.291992
+          "mean_predicted_break_risk": 0.833956,
+          "observed_break_rate": 0.804575,
+          "share_of_all_broken": 0.128948,
+          "lift_vs_test_break_rate": 1.289646
         },
         {
           "risk_rank_decile": 2,
           "rows": 5466,
-          "mean_predicted_break_risk": 0.755603,
-          "observed_break_rate": 0.763813,
-          "share_of_all_broken": 0.122438,
-          "lift_vs_test_break_rate": 1.224309
+          "mean_predicted_break_risk": 0.772695,
+          "observed_break_rate": 0.777717,
+          "share_of_all_broken": 0.124666,
+          "lift_vs_test_break_rate": 1.246596
         },
         {
           "risk_rank_decile": 3,
           "rows": 5466,
-          "mean_predicted_break_risk": 0.572838,
-          "observed_break_rate": 0.766557,
-          "share_of_all_broken": 0.122878,
-          "lift_vs_test_break_rate": 1.228708
+          "mean_predicted_break_risk": 0.672564,
+          "observed_break_rate": 0.748994,
+          "share_of_all_broken": 0.120062,
+          "lift_vs_test_break_rate": 1.200556
         },
         {
           "risk_rank_decile": 4,
           "rows": 5465,
-          "mean_predicted_break_risk": 0.454903,
-          "observed_break_rate": 0.731016,
-          "share_of_all_broken": 0.117159,
-          "lift_vs_test_break_rate": 1.171739
+          "mean_predicted_break_risk": 0.50223,
+          "observed_break_rate": 0.760659,
+          "share_of_all_broken": 0.12191,
+          "lift_vs_test_break_rate": 1.219253
         },
         {
           "risk_rank_decile": 5,
           "rows": 5466,
-          "mean_predicted_break_risk": 0.419642,
-          "observed_break_rate": 0.683864,
-          "share_of_all_broken": 0.109622,
-          "lift_vs_test_break_rate": 1.09616
+          "mean_predicted_break_risk": 0.427115,
+          "observed_break_rate": 0.693743,
+          "share_of_all_broken": 0.111206,
+          "lift_vs_test_break_rate": 1.111995
         },
         {
           "risk_rank_decile": 6,
           "rows": 5466,
-          "mean_predicted_break_risk": 0.398803,
-          "observed_break_rate": 0.623857,
-          "share_of_all_broken": 0.100003,
-          "lift_vs_test_break_rate": 0.999974
+          "mean_predicted_break_risk": 0.402157,
+          "observed_break_rate": 0.620929,
+          "share_of_all_broken": 0.099534,
+          "lift_vs_test_break_rate": 0.995282
         },
         {
           "risk_rank_decile": 7,
           "rows": 5465,
-          "mean_predicted_break_risk": 0.375201,
-          "observed_break_rate": 0.542726,
-          "share_of_all_broken": 0.086982,
-          "lift_vs_test_break_rate": 0.869932
+          "mean_predicted_break_risk": 0.3787,
+          "observed_break_rate": 0.546752,
+          "share_of_all_broken": 0.087627,
+          "lift_vs_test_break_rate": 0.876384
         },
         {
           "risk_rank_decile": 8,
           "rows": 5466,
-          "mean_predicted_break_risk": 0.347344,
-          "observed_break_rate": 0.514636,
-          "share_of_all_broken": 0.082495,
-          "lift_vs_test_break_rate": 0.824906
+          "mean_predicted_break_risk": 0.348415,
+          "observed_break_rate": 0.488108,
+          "share_of_all_broken": 0.078243,
+          "lift_vs_test_break_rate": 0.782385
         },
         {
           "risk_rank_decile": 9,
           "rows": 5466,
-          "mean_predicted_break_risk": 0.31136,
-          "observed_break_rate": 0.443835,
-          "share_of_all_broken": 0.071146,
-          "lift_vs_test_break_rate": 0.711419
+          "mean_predicted_break_risk": 0.312609,
+          "observed_break_rate": 0.444383,
+          "share_of_all_broken": 0.071234,
+          "lift_vs_test_break_rate": 0.712299
         },
         {
           "risk_rank_decile": 10,
           "rows": 5466,
-          "mean_predicted_break_risk": 0.246319,
-          "observed_break_rate": 0.362422,
-          "share_of_all_broken": 0.058096,
-          "lift_vs_test_break_rate": 0.580924
+          "mean_predicted_break_risk": 0.246141,
+          "observed_break_rate": 0.352909,
+          "share_of_all_broken": 0.056571,
+          "lift_vs_test_break_rate": 0.565675
         }
       ],
       "capture": {
         "top_10_percent": {
           "rows": 5466,
-          "broken_promises": 4406,
-          "share_of_all_broken": 0.129212,
-          "lift_vs_test_break_rate": 1.292049
+          "broken_promises": 4398,
+          "share_of_all_broken": 0.128977,
+          "lift_vs_test_break_rate": 1.289703
         },
         "top_20_percent": {
           "rows": 10932,
-          "broken_promises": 8581,
-          "share_of_all_broken": 0.25165,
-          "lift_vs_test_break_rate": 1.258179
+          "broken_promises": 8649,
+          "share_of_all_broken": 0.253644,
+          "lift_vs_test_break_rate": 1.268149
         }
       }
     }
@@ -934,9 +939,9 @@
           "capture": {
             "top_10_percent": {
               "rows": 189,
-              "broken_promises": 168,
-              "share_of_all_broken": 0.139303,
-              "lift_vs_test_break_rate": 1.386401
+              "broken_promises": 167,
+              "share_of_all_broken": 0.138474,
+              "lift_vs_test_break_rate": 1.378149
             },
             "top_20_percent": {
               "rows": 377,
@@ -950,143 +955,161 @@
       "same_rows_logistic": {
         "rows": 1881,
         "kept_rate": 0.358852,
-        "roc_auc": 0.680812,
-        "average_precision": 0.535496,
-        "pr_auc_broken": 0.775525,
+        "roc_auc": 0.680915,
+        "average_precision": 0.537466,
+        "pr_auc_broken": 0.774274,
         "pr_auc_definition": "average precision, positive class = broken promise",
-        "log_loss": 0.690174,
+        "log_loss": 0.679711,
         "calibration": {
-          "brier": 0.248502,
-          "expected_calibration_error": 0.193457,
+          "brier": 0.243764,
+          "expected_calibration_error": 0.181482,
           "bins": [
+            {
+              "range": [
+                0.0,
+                0.1
+              ],
+              "count": 17,
+              "mean_predicted": 0.06839,
+              "observed_kept": 0.0
+            },
             {
               "range": [
                 0.1,
                 0.2
               ],
-              "count": 6,
-              "mean_predicted": 0.16484,
-              "observed_kept": 0.0
+              "count": 47,
+              "mean_predicted": 0.15319,
+              "observed_kept": 0.255319
             },
             {
               "range": [
                 0.2,
                 0.3
               ],
-              "count": 59,
-              "mean_predicted": 0.267298,
-              "observed_kept": 0.169492
+              "count": 79,
+              "mean_predicted": 0.26023,
+              "observed_kept": 0.151899
             },
             {
               "range": [
                 0.3,
                 0.4
               ],
-              "count": 227,
-              "mean_predicted": 0.35813,
-              "observed_kept": 0.140969
+              "count": 215,
+              "mean_predicted": 0.356666,
+              "observed_kept": 0.172093
             },
             {
               "range": [
                 0.4,
                 0.5
               ],
-              "count": 261,
-              "mean_predicted": 0.450105,
-              "observed_kept": 0.256705
+              "count": 262,
+              "mean_predicted": 0.450796,
+              "observed_kept": 0.244275
             },
             {
               "range": [
                 0.5,
                 0.6
               ],
-              "count": 531,
-              "mean_predicted": 0.554389,
-              "observed_kept": 0.320151
+              "count": 493,
+              "mean_predicted": 0.555321,
+              "observed_kept": 0.320487
             },
             {
               "range": [
                 0.6,
                 0.7
               ],
-              "count": 632,
-              "mean_predicted": 0.647469,
-              "observed_kept": 0.466772
+              "count": 610,
+              "mean_predicted": 0.647116,
+              "observed_kept": 0.480328
             },
             {
               "range": [
                 0.7,
                 0.8
               ],
-              "count": 165,
-              "mean_predicted": 0.725933,
-              "observed_kept": 0.612121
+              "count": 158,
+              "mean_predicted": 0.724941,
+              "observed_kept": 0.626582
             }
           ]
         },
         "reliability_table": [
           {
             "range": [
+              0.0,
+              0.1
+            ],
+            "count": 17,
+            "mean_predicted": 0.06839,
+            "observed_kept": 0.0
+          },
+          {
+            "range": [
               0.1,
               0.2
             ],
-            "count": 6,
-            "mean_predicted": 0.16484,
-            "observed_kept": 0.0
+            "count": 47,
+            "mean_predicted": 0.15319,
+            "observed_kept": 0.255319
           },
           {
             "range": [
               0.2,
               0.3
             ],
-            "count": 59,
-            "mean_predicted": 0.267298,
-            "observed_kept": 0.169492
+            "count": 79,
+            "mean_predicted": 0.26023,
+            "observed_kept": 0.151899
           },
           {
             "range": [
               0.3,
               0.4
             ],
-            "count": 227,
-            "mean_predicted": 0.35813,
-            "observed_kept": 0.140969
+            "count": 215,
+            "mean_predicted": 0.356666,
+            "observed_kept": 0.172093
           },
           {
             "range": [
               0.4,
               0.5
             ],
-            "count": 261,
-            "mean_predicted": 0.450105,
-            "observed_kept": 0.256705
+            "count": 262,
+            "mean_predicted": 0.450796,
+            "observed_kept": 0.244275
           },
           {
             "range": [
               0.5,
               0.6
             ],
-            "count": 531,
-            "mean_predicted": 0.554389,
-            "observed_kept": 0.320151
+            "count": 493,
+            "mean_predicted": 0.555321,
+            "observed_kept": 0.320487
           },
           {
             "range": [
               0.6,
               0.7
             ],
-            "count": 632,
-            "mean_predicted": 0.647469,
-            "observed_kept": 0.466772
+            "count": 610,
+            "mean_predicted": 0.647116,
+            "observed_kept": 0.480328
           },
           {
             "range": [
               0.7,
               0.8
             ],
-            "count": 165,
-            "mean_predicted": 0.725933,
-            "observed_kept": 0.612121
+            "count": 158,
+            "mean_predicted": 0.724941,
+            "observed_kept": 0.626582
           }
         ],
         "lift_by_decile": {
@@ -1094,79 +1117,79 @@
             {
               "risk_rank_decile": 1,
               "rows": 188,
-              "mean_predicted_break_risk": 0.691456,
-              "observed_break_rate": 0.861702,
-              "share_of_all_broken": 0.134328,
-              "lift_vs_test_break_rate": 1.343998
+              "mean_predicted_break_risk": 0.770523,
+              "observed_break_rate": 0.824468,
+              "share_of_all_broken": 0.128524,
+              "lift_vs_test_break_rate": 1.285924
             },
             {
               "risk_rank_decile": 2,
               "rows": 188,
-              "mean_predicted_break_risk": 0.601243,
-              "observed_break_rate": 0.819149,
-              "share_of_all_broken": 0.127695,
-              "lift_vs_test_break_rate": 1.277628
+              "mean_predicted_break_risk": 0.629123,
+              "observed_break_rate": 0.835106,
+              "share_of_all_broken": 0.130182,
+              "lift_vs_test_break_rate": 1.302517
             },
             {
               "risk_rank_decile": 3,
               "rows": 188,
-              "mean_predicted_break_risk": 0.531529,
-              "observed_break_rate": 0.728723,
-              "share_of_all_broken": 0.113599,
-              "lift_vs_test_break_rate": 1.136591
+              "mean_predicted_break_risk": 0.556465,
+              "observed_break_rate": 0.75,
+              "share_of_all_broken": 0.116915,
+              "lift_vs_test_break_rate": 1.169776
             },
             {
               "risk_rank_decile": 4,
               "rows": 188,
-              "mean_predicted_break_risk": 0.475872,
-              "observed_break_rate": 0.696809,
-              "share_of_all_broken": 0.108624,
-              "lift_vs_test_break_rate": 1.086813
+              "mean_predicted_break_risk": 0.490315,
+              "observed_break_rate": 0.702128,
+              "share_of_all_broken": 0.109453,
+              "lift_vs_test_break_rate": 1.09511
             },
             {
               "risk_rank_decile": 5,
               "rows": 188,
-              "mean_predicted_break_risk": 0.437842,
-              "observed_break_rate": 0.696809,
-              "share_of_all_broken": 0.108624,
-              "lift_vs_test_break_rate": 1.086813
+              "mean_predicted_break_risk": 0.445701,
+              "observed_break_rate": 0.702128,
+              "share_of_all_broken": 0.109453,
+              "lift_vs_test_break_rate": 1.09511
             },
             {
               "risk_rank_decile": 6,
               "rows": 188,
-              "mean_predicted_break_risk": 0.408687,
-              "observed_break_rate": 0.632979,
-              "share_of_all_broken": 0.098673,
-              "lift_vs_test_break_rate": 0.987258
+              "mean_predicted_break_risk": 0.413705,
+              "observed_break_rate": 0.648936,
+              "share_of_all_broken": 0.101161,
+              "lift_vs_test_break_rate": 1.012147
             },
             {
               "risk_rank_decile": 7,
               "rows": 188,
-              "mean_predicted_break_risk": 0.381241,
-              "observed_break_rate": 0.601064,
-              "share_of_all_broken": 0.093698,
-              "lift_vs_test_break_rate": 0.93748
+              "mean_predicted_break_risk": 0.384176,
+              "observed_break_rate": 0.606383,
+              "share_of_all_broken": 0.094527,
+              "lift_vs_test_break_rate": 0.945776
             },
             {
               "risk_rank_decile": 8,
               "rows": 188,
-              "mean_predicted_break_risk": 0.351692,
-              "observed_break_rate": 0.558511,
-              "share_of_all_broken": 0.087065,
-              "lift_vs_test_break_rate": 0.87111
+              "mean_predicted_break_risk": 0.355349,
+              "observed_break_rate": 0.547872,
+              "share_of_all_broken": 0.085406,
+              "lift_vs_test_break_rate": 0.854517
             },
             {
               "risk_rank_decile": 9,
               "rows": 188,
-              "mean_predicted_break_risk": 0.320682,
-              "observed_break_rate": 0.430851,
-              "share_of_all_broken": 0.067164,
-              "lift_vs_test_break_rate": 0.671999
+              "mean_predicted_break_risk": 0.323492,
+              "observed_break_rate": 0.409574,
+              "share_of_all_broken": 0.063847,
+              "lift_vs_test_break_rate": 0.638814
             },
             {
               "risk_rank_decile": 10,
               "rows": 189,
-              "mean_predicted_break_risk": 0.277573,
+              "mean_predicted_break_risk": 0.279837,
               "observed_break_rate": 0.386243,
               "share_of_all_broken": 0.060531,
               "lift_vs_test_break_rate": 0.602424
@@ -1175,15 +1198,15 @@
           "capture": {
             "top_10_percent": {
               "rows": 189,
-              "broken_promises": 163,
-              "share_of_all_broken": 0.135158,
-              "lift_vs_test_break_rate": 1.345139
+              "broken_promises": 156,
+              "share_of_all_broken": 0.129353,
+              "lift_vs_test_break_rate": 1.287373
             },
             "top_20_percent": {
               "rows": 377,
-              "broken_promises": 316,
-              "share_of_all_broken": 0.262023,
-              "lift_vs_test_break_rate": 1.307336
+              "broken_promises": 312,
+              "share_of_all_broken": 0.258706,
+              "lift_vs_test_break_rate": 1.290787
             }
           }
         }
@@ -1191,94 +1214,94 @@
       "same_rows_lightgbm": {
         "rows": 1881,
         "kept_rate": 0.358852,
-        "roc_auc": 0.684879,
-        "average_precision": 0.571185,
-        "pr_auc_broken": 0.768937,
+        "roc_auc": 0.689046,
+        "average_precision": 0.571849,
+        "pr_auc_broken": 0.771799,
         "pr_auc_definition": "average precision, positive class = broken promise",
-        "log_loss": 0.665702,
+        "log_loss": 0.648761,
         "calibration": {
-          "brier": 0.237774,
-          "expected_calibration_error": 0.152099,
+          "brier": 0.22953,
+          "expected_calibration_error": 0.134022,
           "bins": [
             {
               "range": [
                 0.0,
                 0.1
               ],
-              "count": 2,
-              "mean_predicted": 0.09797,
-              "observed_kept": 0.0
+              "count": 9,
+              "mean_predicted": 0.08617,
+              "observed_kept": 0.222222
             },
             {
               "range": [
                 0.1,
                 0.2
               ],
-              "count": 155,
-              "mean_predicted": 0.171327,
-              "observed_kept": 0.16129
+              "count": 192,
+              "mean_predicted": 0.165449,
+              "observed_kept": 0.182292
             },
             {
               "range": [
                 0.2,
                 0.3
               ],
-              "count": 247,
-              "mean_predicted": 0.236771,
-              "observed_kept": 0.206478
+              "count": 299,
+              "mean_predicted": 0.243507,
+              "observed_kept": 0.197324
             },
             {
               "range": [
                 0.3,
                 0.4
               ],
-              "count": 66,
-              "mean_predicted": 0.344819,
-              "observed_kept": 0.19697
+              "count": 93,
+              "mean_predicted": 0.355166,
+              "observed_kept": 0.247312
             },
             {
               "range": [
                 0.4,
                 0.5
               ],
-              "count": 164,
-              "mean_predicted": 0.458936,
-              "observed_kept": 0.286585
+              "count": 159,
+              "mean_predicted": 0.453477,
+              "observed_kept": 0.283019
             },
             {
               "range": [
                 0.5,
                 0.6
               ],
-              "count": 518,
-              "mean_predicted": 0.567748,
-              "observed_kept": 0.303089
+              "count": 438,
+              "mean_predicted": 0.56687,
+              "observed_kept": 0.333333
             },
             {
               "range": [
                 0.6,
                 0.7
               ],
-              "count": 562,
-              "mean_predicted": 0.641819,
-              "observed_kept": 0.469751
+              "count": 535,
+              "mean_predicted": 0.64157,
+              "observed_kept": 0.472897
             },
             {
               "range": [
                 0.7,
                 0.8
               ],
-              "count": 166,
-              "mean_predicted": 0.734028,
-              "observed_kept": 0.704819
+              "count": 153,
+              "mean_predicted": 0.735976,
+              "observed_kept": 0.712418
             },
             {
               "range": [
                 0.8,
                 0.9
               ],
-              "count": 1,
-              "mean_predicted": 0.803871,
+              "count": 3,
+              "mean_predicted": 0.812775,
               "observed_kept": 1.0
             }
           ]
@@ -1289,80 +1312,80 @@
               0.0,
               0.1
             ],
-            "count": 2,
-            "mean_predicted": 0.09797,
-            "observed_kept": 0.0
+            "count": 9,
+            "mean_predicted": 0.08617,
+            "observed_kept": 0.222222
           },
           {
             "range": [
               0.1,
               0.2
             ],
-            "count": 155,
-            "mean_predicted": 0.171327,
-            "observed_kept": 0.16129
+            "count": 192,
+            "mean_predicted": 0.165449,
+            "observed_kept": 0.182292
           },
           {
             "range": [
               0.2,
               0.3
             ],
-            "count": 247,
-            "mean_predicted": 0.236771,
-            "observed_kept": 0.206478
+            "count": 299,
+            "mean_predicted": 0.243507,
+            "observed_kept": 0.197324
           },
           {
             "range": [
               0.3,
               0.4
             ],
-            "count": 66,
-            "mean_predicted": 0.344819,
-            "observed_kept": 0.19697
+            "count": 93,
+            "mean_predicted": 0.355166,
+            "observed_kept": 0.247312
           },
           {
             "range": [
               0.4,
               0.5
             ],
-            "count": 164,
-            "mean_predicted": 0.458936,
-            "observed_kept": 0.286585
+            "count": 159,
+            "mean_predicted": 0.453477,
+            "observed_kept": 0.283019
           },
           {
             "range": [
               0.5,
               0.6
             ],
-            "count": 518,
-            "mean_predicted": 0.567748,
-            "observed_kept": 0.303089
+            "count": 438,
+            "mean_predicted": 0.56687,
+            "observed_kept": 0.333333
           },
           {
             "range": [
               0.6,
               0.7
             ],
-            "count": 562,
-            "mean_predicted": 0.641819,
-            "observed_kept": 0.469751
+            "count": 535,
+            "mean_predicted": 0.64157,
+            "observed_kept": 0.472897
           },
           {
             "range": [
               0.7,
               0.8
             ],
-            "count": 166,
-            "mean_predicted": 0.734028,
-            "observed_kept": 0.704819
+            "count": 153,
+            "mean_predicted": 0.735976,
+            "observed_kept": 0.712418
           },
           {
             "range": [
               0.8,
               0.9
             ],
-            "count": 1,
-            "mean_predicted": 0.803871,
+            "count": 3,
+            "mean_predicted": 0.812775,
             "observed_kept": 1.0
           }
         ],
@@ -1371,96 +1394,96 @@
             {
               "risk_rank_decile": 1,
               "rows": 188,
-              "mean_predicted_break_risk": 0.823924,
-              "observed_break_rate": 0.840426,
-              "share_of_all_broken": 0.131012,
-              "lift_vs_test_break_rate": 1.310813
+              "mean_predicted_break_risk": 0.840659,
+              "observed_break_rate": 0.824468,
+              "share_of_all_broken": 0.128524,
+              "lift_vs_test_break_rate": 1.285924
             },
             {
               "risk_rank_decile": 2,
               "rows": 188,
-              "mean_predicted_break_risk": 0.765114,
-              "observed_break_rate": 0.792553,
-              "share_of_all_broken": 0.123549,
-              "lift_vs_test_break_rate": 1.236146
+              "mean_predicted_break_risk": 0.778734,
+              "observed_break_rate": 0.81383,
+              "share_of_all_broken": 0.126866,
+              "lift_vs_test_break_rate": 1.269332
             },
             {
               "risk_rank_decile": 3,
               "rows": 188,
-              "mean_predicted_break_risk": 0.614562,
-              "observed_break_rate": 0.712766,
-              "share_of_all_broken": 0.111111,
-              "lift_vs_test_break_rate": 1.111702
+              "mean_predicted_break_risk": 0.704266,
+              "observed_break_rate": 0.781915,
+              "share_of_all_broken": 0.121891,
+              "lift_vs_test_break_rate": 1.219554
             },
             {
               "risk_rank_decile": 4,
               "rows": 188,
-              "mean_predicted_break_risk": 0.48787,
-              "observed_break_rate": 0.75,
-              "share_of_all_broken": 0.116915,
-              "lift_vs_test_break_rate": 1.169776
+              "mean_predicted_break_risk": 0.556747,
+              "observed_break_rate": 0.707447,
+              "share_of_all_broken": 0.110282,
+              "lift_vs_test_break_rate": 1.103406
             },
             {
               "risk_rank_decile": 5,
               "rows": 188,
-              "mean_predicted_break_risk": 0.433823,
-              "observed_break_rate": 0.680851,
-              "share_of_all_broken": 0.106136,
-              "lift_vs_test_break_rate": 1.061924
+              "mean_predicted_break_risk": 0.457655,
+              "observed_break_rate": 0.728723,
+              "share_of_all_broken": 0.113599,
+              "lift_vs_test_break_rate": 1.136591
             },
             {
               "risk_rank_decile": 6,
               "rows": 188,
-              "mean_predicted_break_risk": 0.412014,
-              "observed_break_rate": 0.702128,
-              "share_of_all_broken": 0.109453,
-              "lift_vs_test_break_rate": 1.09511
-            },
-            {
-              "risk_rank_decile": 7,
-              "rows": 188,
-              "mean_predicted_break_risk": 0.390206,
+              "mean_predicted_break_risk": 0.418386,
               "observed_break_rate": 0.632979,
               "share_of_all_broken": 0.098673,
               "lift_vs_test_break_rate": 0.987258
             },
             {
+              "risk_rank_decile": 7,
+              "rows": 188,
+              "mean_predicted_break_risk": 0.395495,
+              "observed_break_rate": 0.606383,
+              "share_of_all_broken": 0.094527,
+              "lift_vs_test_break_rate": 0.945776
+            },
+            {
               "risk_rank_decile": 8,
               "rows": 188,
-              "mean_predicted_break_risk": 0.363732,
-              "observed_break_rate": 0.515957,
-              "share_of_all_broken": 0.080431,
-              "lift_vs_test_break_rate": 0.80474
+              "mean_predicted_break_risk": 0.368833,
+              "observed_break_rate": 0.531915,
+              "share_of_all_broken": 0.082919,
+              "lift_vs_test_break_rate": 0.829628
             },
             {
               "risk_rank_decile": 9,
               "rows": 188,
-              "mean_predicted_break_risk": 0.332461,
-              "observed_break_rate": 0.5,
-              "share_of_all_broken": 0.077944,
-              "lift_vs_test_break_rate": 0.779851
+              "mean_predicted_break_risk": 0.335209,
+              "observed_break_rate": 0.494681,
+              "share_of_all_broken": 0.077114,
+              "lift_vs_test_break_rate": 0.771554
             },
             {
               "risk_rank_decile": 10,
               "rows": 189,
-              "mean_predicted_break_risk": 0.270037,
-              "observed_break_rate": 0.285714,
-              "share_of_all_broken": 0.044776,
-              "lift_vs_test_break_rate": 0.445629
+              "mean_predicted_break_risk": 0.269947,
+              "observed_break_rate": 0.291005,
+              "share_of_all_broken": 0.045605,
+              "lift_vs_test_break_rate": 0.453881
             }
           ],
           "capture": {
             "top_10_percent": {
               "rows": 189,
-              "broken_promises": 159,
-              "share_of_all_broken": 0.131841,
-              "lift_vs_test_break_rate": 1.31213
+              "broken_promises": 155,
+              "share_of_all_broken": 0.128524,
+              "lift_vs_test_break_rate": 1.27912
             },
             "top_20_percent": {
               "rows": 377,
-              "broken_promises": 308,
-              "share_of_all_broken": 0.25539,
-              "lift_vs_test_break_rate": 1.274239
+              "broken_promises": 309,
+              "share_of_all_broken": 0.256219,
+              "lift_vs_test_break_rate": 1.278376
             }
           }
         }
@@ -1695,17 +1718,17 @@
               "risk_rank_decile": 4,
               "rows": 1158,
               "mean_predicted_break_risk": 0.719885,
-              "observed_break_rate": 0.681347,
-              "share_of_all_broken": 0.102321,
-              "lift_vs_test_break_rate": 1.023567
+              "observed_break_rate": 0.680484,
+              "share_of_all_broken": 0.102192,
+              "lift_vs_test_break_rate": 1.02227
             },
             {
               "risk_rank_decile": 5,
               "rows": 1159,
               "mean_predicted_break_risk": 0.649397,
-              "observed_break_rate": 0.686799,
-              "share_of_all_broken": 0.103229,
-              "lift_vs_test_break_rate": 1.031757
+              "observed_break_rate": 0.687662,
+              "share_of_all_broken": 0.103359,
+              "lift_vs_test_break_rate": 1.033053
             },
             {
               "risk_rank_decile": 6,
@@ -1735,17 +1758,17 @@
               "risk_rank_decile": 9,
               "rows": 1158,
               "mean_predicted_break_risk": 0.305102,
-              "observed_break_rate": 0.617444,
-              "share_of_all_broken": 0.092725,
-              "lift_vs_test_break_rate": 0.927567
+              "observed_break_rate": 0.618307,
+              "share_of_all_broken": 0.092854,
+              "lift_vs_test_break_rate": 0.928864
             },
             {
               "risk_rank_decile": 10,
               "rows": 1159,
               "mean_predicted_break_risk": 0.161702,
-              "observed_break_rate": 0.570319,
-              "share_of_all_broken": 0.085722,
-              "lift_vs_test_break_rate": 0.856773
+              "observed_break_rate": 0.569456,
+              "share_of_all_broken": 0.085592,
+              "lift_vs_test_break_rate": 0.855477
             }
           ],
           "capture": {
@@ -1767,86 +1790,86 @@
       "same_rows_logistic": {
         "rows": 11584,
         "kept_rate": 0.33434,
-        "roc_auc": 0.631607,
-        "average_precision": 0.462578,
-        "pr_auc_broken": 0.761001,
+        "roc_auc": 0.634018,
+        "average_precision": 0.466115,
+        "pr_auc_broken": 0.756748,
         "pr_auc_definition": "average precision, positive class = broken promise",
-        "log_loss": 0.695913,
+        "log_loss": 0.690309,
         "calibration": {
-          "brier": 0.251547,
-          "expected_calibration_error": 0.194675,
+          "brier": 0.248291,
+          "expected_calibration_error": 0.185696,
           "bins": [
             {
               "range": [
                 0.0,
                 0.1
               ],
-              "count": 5,
-              "mean_predicted": 0.0869,
-              "observed_kept": 0.2
+              "count": 152,
+              "mean_predicted": 0.064842,
+              "observed_kept": 0.197368
             },
             {
               "range": [
                 0.1,
                 0.2
               ],
-              "count": 141,
-              "mean_predicted": 0.154149,
-              "observed_kept": 0.141844
+              "count": 323,
+              "mean_predicted": 0.153861,
+              "observed_kept": 0.198142
             },
             {
               "range": [
                 0.2,
                 0.3
               ],
-              "count": 513,
-              "mean_predicted": 0.261937,
-              "observed_kept": 0.159844
+              "count": 627,
+              "mean_predicted": 0.257296,
+              "observed_kept": 0.169059
             },
             {
               "range": [
                 0.3,
                 0.4
               ],
-              "count": 1399,
-              "mean_predicted": 0.355061,
-              "observed_kept": 0.209435
+              "count": 1355,
+              "mean_predicted": 0.354578,
+              "observed_kept": 0.21845
             },
             {
               "range": [
                 0.4,
                 0.5
               ],
-              "count": 1905,
-              "mean_predicted": 0.452544,
-              "observed_kept": 0.28294
+              "count": 1891,
+              "mean_predicted": 0.451572,
+              "observed_kept": 0.277102
             },
             {
               "range": [
                 0.5,
                 0.6
               ],
-              "count": 3597,
-              "mean_predicted": 0.553099,
-              "observed_kept": 0.313595
+              "count": 3267,
+              "mean_predicted": 0.552877,
+              "observed_kept": 0.321396
             },
             {
               "range": [
                 0.6,
                 0.7
               ],
-              "count": 3629,
-              "mean_predicted": 0.644298,
-              "observed_kept": 0.42987
+              "count": 3520,
+              "mean_predicted": 0.645004,
+              "observed_kept": 0.43125
             },
             {
               "range": [
                 0.7,
                 0.8
               ],
-              "count": 395,
-              "mean_predicted": 0.718876,
-              "observed_kept": 0.632911
+              "count": 449,
+              "mean_predicted": 0.720023,
+              "observed_kept": 0.634744
             }
           ]
         },
@@ -1856,72 +1879,72 @@
               0.0,
               0.1
             ],
-            "count": 5,
-            "mean_predicted": 0.0869,
-            "observed_kept": 0.2
+            "count": 152,
+            "mean_predicted": 0.064842,
+            "observed_kept": 0.197368
           },
           {
             "range": [
               0.1,
               0.2
             ],
-            "count": 141,
-            "mean_predicted": 0.154149,
-            "observed_kept": 0.141844
+            "count": 323,
+            "mean_predicted": 0.153861,
+            "observed_kept": 0.198142
           },
           {
             "range": [
               0.2,
               0.3
             ],
-            "count": 513,
-            "mean_predicted": 0.261937,
-            "observed_kept": 0.159844
+            "count": 627,
+            "mean_predicted": 0.257296,
+            "observed_kept": 0.169059
           },
           {
             "range": [
               0.3,
               0.4
             ],
-            "count": 1399,
-            "mean_predicted": 0.355061,
-            "observed_kept": 0.209435
+            "count": 1355,
+            "mean_predicted": 0.354578,
+            "observed_kept": 0.21845
           },
           {
             "range": [
               0.4,
               0.5
             ],
-            "count": 1905,
-            "mean_predicted": 0.452544,
-            "observed_kept": 0.28294
+            "count": 1891,
+            "mean_predicted": 0.451572,
+            "observed_kept": 0.277102
           },
           {
             "range": [
               0.5,
               0.6
             ],
-            "count": 3597,
-            "mean_predicted": 0.553099,
-            "observed_kept": 0.313595
+            "count": 3267,
+            "mean_predicted": 0.552877,
+            "observed_kept": 0.321396
           },
           {
             "range": [
               0.6,
               0.7
             ],
-            "count": 3629,
-            "mean_predicted": 0.644298,
-            "observed_kept": 0.42987
+            "count": 3520,
+            "mean_predicted": 0.645004,
+            "observed_kept": 0.43125
           },
           {
             "range": [
               0.7,
               0.8
             ],
-            "count": 395,
-            "mean_predicted": 0.718876,
-            "observed_kept": 0.632911
+            "count": 449,
+            "mean_predicted": 0.720023,
+            "observed_kept": 0.634744
           }
         ],
         "lift_by_decile": {
@@ -1929,96 +1952,96 @@
             {
               "risk_rank_decile": 1,
               "rows": 1158,
-              "mean_predicted_break_risk": 0.7257,
-              "observed_break_rate": 0.835924,
-              "share_of_all_broken": 0.125535,
-              "lift_vs_test_break_rate": 1.255783
+              "mean_predicted_break_risk": 0.794636,
+              "observed_break_rate": 0.816062,
+              "share_of_all_broken": 0.122552,
+              "lift_vs_test_break_rate": 1.225945
             },
             {
               "risk_rank_decile": 2,
               "rows": 1158,
-              "mean_predicted_break_risk": 0.619561,
-              "observed_break_rate": 0.764249,
-              "share_of_all_broken": 0.114771,
-              "lift_vs_test_break_rate": 1.148108
+              "mean_predicted_break_risk": 0.647951,
+              "observed_break_rate": 0.783247,
+              "share_of_all_broken": 0.117624,
+              "lift_vs_test_break_rate": 1.176648
             },
             {
               "risk_rank_decile": 3,
               "rows": 1159,
-              "mean_predicted_break_risk": 0.553071,
-              "observed_break_rate": 0.715272,
-              "share_of_all_broken": 0.107509,
-              "lift_vs_test_break_rate": 1.074531
+              "mean_predicted_break_risk": 0.575474,
+              "observed_break_rate": 0.742882,
+              "share_of_all_broken": 0.111659,
+              "lift_vs_test_break_rate": 1.116009
             },
             {
               "risk_rank_decile": 4,
               "rows": 1158,
-              "mean_predicted_break_risk": 0.497625,
-              "observed_break_rate": 0.713299,
-              "share_of_all_broken": 0.10712,
-              "lift_vs_test_break_rate": 1.071567
+              "mean_predicted_break_risk": 0.514788,
+              "observed_break_rate": 0.707254,
+              "share_of_all_broken": 0.106212,
+              "lift_vs_test_break_rate": 1.062486
             },
             {
               "risk_rank_decile": 5,
               "rows": 1159,
-              "mean_predicted_break_risk": 0.460697,
-              "observed_break_rate": 0.706644,
-              "share_of_all_broken": 0.106212,
-              "lift_vs_test_break_rate": 1.061569
+              "mean_predicted_break_risk": 0.469635,
+              "observed_break_rate": 0.701467,
+              "share_of_all_broken": 0.105434,
+              "lift_vs_test_break_rate": 1.053792
             },
             {
               "risk_rank_decile": 6,
               "rows": 1158,
-              "mean_predicted_break_risk": 0.429713,
-              "observed_break_rate": 0.670121,
-              "share_of_all_broken": 0.100635,
-              "lift_vs_test_break_rate": 1.006702
+              "mean_predicted_break_risk": 0.434726,
+              "observed_break_rate": 0.658031,
+              "share_of_all_broken": 0.09882,
+              "lift_vs_test_break_rate": 0.98854
             },
             {
               "risk_rank_decile": 7,
               "rows": 1158,
-              "mean_predicted_break_risk": 0.400639,
-              "observed_break_rate": 0.64076,
-              "share_of_all_broken": 0.096226,
-              "lift_vs_test_break_rate": 0.962594
+              "mean_predicted_break_risk": 0.402703,
+              "observed_break_rate": 0.651123,
+              "share_of_all_broken": 0.097782,
+              "lift_vs_test_break_rate": 0.978162
             },
             {
               "risk_rank_decile": 8,
               "rows": 1159,
-              "mean_predicted_break_risk": 0.373233,
-              "observed_break_rate": 0.610009,
-              "share_of_all_broken": 0.091687,
-              "lift_vs_test_break_rate": 0.916397
+              "mean_predicted_break_risk": 0.37329,
+              "observed_break_rate": 0.591027,
+              "share_of_all_broken": 0.088834,
+              "lift_vs_test_break_rate": 0.887881
             },
             {
               "risk_rank_decile": 9,
               "rows": 1158,
-              "mean_predicted_break_risk": 0.345979,
-              "observed_break_rate": 0.552677,
-              "share_of_all_broken": 0.082998,
-              "lift_vs_test_break_rate": 0.83027
+              "mean_predicted_break_risk": 0.344073,
+              "observed_break_rate": 0.568221,
+              "share_of_all_broken": 0.085333,
+              "lift_vs_test_break_rate": 0.853621
             },
             {
               "risk_rank_decile": 10,
               "rows": 1159,
-              "mean_predicted_break_risk": 0.304775,
-              "observed_break_rate": 0.4478,
-              "share_of_all_broken": 0.067306,
-              "lift_vs_test_break_rate": 0.672716
+              "mean_predicted_break_risk": 0.302026,
+              "observed_break_rate": 0.437446,
+              "share_of_all_broken": 0.06575,
+              "lift_vs_test_break_rate": 0.657162
             }
           ],
           "capture": {
             "top_10_percent": {
               "rows": 1159,
-              "broken_promises": 968,
-              "share_of_all_broken": 0.125535,
-              "lift_vs_test_break_rate": 1.2547
+              "broken_promises": 946,
+              "share_of_all_broken": 0.122682,
+              "lift_vs_test_break_rate": 1.226184
             },
             "top_20_percent": {
               "rows": 2317,
-              "broken_promises": 1854,
-              "share_of_all_broken": 0.240436,
-              "lift_vs_test_break_rate": 1.202075
+              "broken_promises": 1852,
+              "share_of_all_broken": 0.240176,
+              "lift_vs_test_break_rate": 1.200778
             }
           }
         }
@@ -2026,86 +2049,86 @@
       "same_rows_lightgbm": {
         "rows": 11584,
         "kept_rate": 0.33434,
-        "roc_auc": 0.622602,
-        "average_precision": 0.454249,
-        "pr_auc_broken": 0.745475,
+        "roc_auc": 0.633443,
+        "average_precision": 0.469366,
+        "pr_auc_broken": 0.750845,
         "pr_auc_definition": "average precision, positive class = broken promise",
-        "log_loss": 0.692785,
+        "log_loss": 0.674714,
         "calibration": {
-          "brier": 0.250161,
-          "expected_calibration_error": 0.169382,
+          "brier": 0.241333,
+          "expected_calibration_error": 0.148272,
           "bins": [
             {
               "range": [
                 0.0,
                 0.1
               ],
-              "count": 8,
-              "mean_predicted": 0.087125,
-              "observed_kept": 0.25
+              "count": 36,
+              "mean_predicted": 0.087149,
+              "observed_kept": 0.166667
             },
             {
               "range": [
                 0.1,
                 0.2
               ],
-              "count": 879,
-              "mean_predicted": 0.171411,
-              "observed_kept": 0.202503
+              "count": 1231,
+              "mean_predicted": 0.164924,
+              "observed_kept": 0.212023
             },
             {
               "range": [
                 0.2,
                 0.3
               ],
-              "count": 1916,
-              "mean_predicted": 0.241854,
-              "observed_kept": 0.248434
+              "count": 2163,
+              "mean_predicted": 0.243143,
+              "observed_kept": 0.249191
             },
             {
               "range": [
                 0.3,
                 0.4
               ],
-              "count": 271,
-              "mean_predicted": 0.34649,
-              "observed_kept": 0.232472
+              "count": 570,
+              "mean_predicted": 0.349233,
+              "observed_kept": 0.236842
             },
             {
               "range": [
                 0.4,
                 0.5
               ],
-              "count": 910,
-              "mean_predicted": 0.458864,
-              "observed_kept": 0.242857
+              "count": 840,
+              "mean_predicted": 0.454441,
+              "observed_kept": 0.265476
             },
             {
               "range": [
                 0.5,
                 0.6
               ],
-              "count": 3678,
-              "mean_predicted": 0.569382,
-              "observed_kept": 0.321642
+              "count": 3005,
+              "mean_predicted": 0.571306,
+              "observed_kept": 0.316805
             },
             {
               "range": [
                 0.6,
                 0.7
               ],
-              "count": 3474,
-              "mean_predicted": 0.635228,
-              "observed_kept": 0.42631
+              "count": 3315,
+              "mean_predicted": 0.635023,
+              "observed_kept": 0.44917
             },
             {
               "range": [
                 0.7,
                 0.8
               ],
-              "count": 443,
-              "mean_predicted": 0.725505,
-              "observed_kept": 0.602709
+              "count": 419,
+              "mean_predicted": 0.725264,
+              "observed_kept": 0.632458
             },
             {
               "range": [
@@ -2113,8 +2136,8 @@
                 0.9
               ],
               "count": 5,
-              "mean_predicted": 0.810168,
-              "observed_kept": 0.4
+              "mean_predicted": 0.819898,
+              "observed_kept": 0.6
             }
           ]
         },
@@ -2124,72 +2147,72 @@
               0.0,
               0.1
             ],
-            "count": 8,
-            "mean_predicted": 0.087125,
-            "observed_kept": 0.25
+            "count": 36,
+            "mean_predicted": 0.087149,
+            "observed_kept": 0.166667
           },
           {
             "range": [
               0.1,
               0.2
             ],
-            "count": 879,
-            "mean_predicted": 0.171411,
-            "observed_kept": 0.202503
+            "count": 1231,
+            "mean_predicted": 0.164924,
+            "observed_kept": 0.212023
           },
           {
             "range": [
               0.2,
               0.3
             ],
-            "count": 1916,
-            "mean_predicted": 0.241854,
-            "observed_kept": 0.248434
+            "count": 2163,
+            "mean_predicted": 0.243143,
+            "observed_kept": 0.249191
           },
           {
             "range": [
               0.3,
               0.4
             ],
-            "count": 271,
-            "mean_predicted": 0.34649,
-            "observed_kept": 0.232472
+            "count": 570,
+            "mean_predicted": 0.349233,
+            "observed_kept": 0.236842
           },
           {
             "range": [
               0.4,
               0.5
             ],
-            "count": 910,
-            "mean_predicted": 0.458864,
-            "observed_kept": 0.242857
+            "count": 840,
+            "mean_predicted": 0.454441,
+            "observed_kept": 0.265476
           },
           {
             "range": [
               0.5,
               0.6
             ],
-            "count": 3678,
-            "mean_predicted": 0.569382,
-            "observed_kept": 0.321642
+            "count": 3005,
+            "mean_predicted": 0.571306,
+            "observed_kept": 0.316805
           },
           {
             "range": [
               0.6,
               0.7
             ],
-            "count": 3474,
-            "mean_predicted": 0.635228,
-            "observed_kept": 0.42631
+            "count": 3315,
+            "mean_predicted": 0.635023,
+            "observed_kept": 0.44917
           },
           {
             "range": [
               0.7,
               0.8
             ],
-            "count": 443,
-            "mean_predicted": 0.725505,
-            "observed_kept": 0.602709
+            "count": 419,
+            "mean_predicted": 0.725264,
+            "observed_kept": 0.632458
           },
           {
             "range": [
@@ -2197,8 +2220,8 @@
               0.9
             ],
             "count": 5,
-            "mean_predicted": 0.810168,
-            "observed_kept": 0.4
+            "mean_predicted": 0.819898,
+            "observed_kept": 0.6
           }
         ],
         "lift_by_decile": {
@@ -2206,96 +2229,96 @@
             {
               "risk_rank_decile": 1,
               "rows": 1158,
-              "mean_predicted_break_risk": 0.820848,
-              "observed_break_rate": 0.803109,
-              "share_of_all_broken": 0.120607,
-              "lift_vs_test_break_rate": 1.206486
+              "mean_predicted_break_risk": 0.840608,
+              "observed_break_rate": 0.787565,
+              "share_of_all_broken": 0.118273,
+              "lift_vs_test_break_rate": 1.183135
             },
             {
               "risk_rank_decile": 2,
               "rows": 1158,
-              "mean_predicted_break_risk": 0.764142,
-              "observed_break_rate": 0.74266,
-              "share_of_all_broken": 0.111529,
-              "lift_vs_test_break_rate": 1.115675
+              "mean_predicted_break_risk": 0.781663,
+              "observed_break_rate": 0.789292,
+              "share_of_all_broken": 0.118532,
+              "lift_vs_test_break_rate": 1.185729
             },
             {
               "risk_rank_decile": 3,
               "rows": 1159,
-              "mean_predicted_break_risk": 0.650916,
-              "observed_break_rate": 0.754961,
-              "share_of_all_broken": 0.113474,
-              "lift_vs_test_break_rate": 1.134155
+              "mean_predicted_break_risk": 0.734025,
+              "observed_break_rate": 0.716997,
+              "share_of_all_broken": 0.107768,
+              "lift_vs_test_break_rate": 1.077123
             },
             {
               "risk_rank_decile": 4,
               "rows": 1158,
-              "mean_predicted_break_risk": 0.495452,
-              "observed_break_rate": 0.739206,
-              "share_of_all_broken": 0.11101,
-              "lift_vs_test_break_rate": 1.110486
+              "mean_predicted_break_risk": 0.597404,
+              "observed_break_rate": 0.746978,
+              "share_of_all_broken": 0.112177,
+              "lift_vs_test_break_rate": 1.122162
             },
             {
               "risk_rank_decile": 5,
               "rows": 1159,
-              "mean_predicted_break_risk": 0.437072,
-              "observed_break_rate": 0.676445,
-              "share_of_all_broken": 0.101673,
-              "lift_vs_test_break_rate": 1.016203
+              "mean_predicted_break_risk": 0.467451,
+              "observed_break_rate": 0.735979,
+              "share_of_all_broken": 0.110621,
+              "lift_vs_test_break_rate": 1.105639
             },
             {
               "risk_rank_decile": 6,
               "rows": 1158,
-              "mean_predicted_break_risk": 0.41731,
-              "observed_break_rate": 0.680484,
-              "share_of_all_broken": 0.102192,
-              "lift_vs_test_break_rate": 1.02227
+              "mean_predicted_break_risk": 0.422388,
+              "observed_break_rate": 0.66494,
+              "share_of_all_broken": 0.099857,
+              "lift_vs_test_break_rate": 0.998918
             },
             {
               "risk_rank_decile": 7,
               "rows": 1158,
-              "mean_predicted_break_risk": 0.401582,
-              "observed_break_rate": 0.619171,
-              "share_of_all_broken": 0.092984,
-              "lift_vs_test_break_rate": 0.930162
+              "mean_predicted_break_risk": 0.404178,
+              "observed_break_rate": 0.634715,
+              "share_of_all_broken": 0.095318,
+              "lift_vs_test_break_rate": 0.953513
             },
             {
               "risk_rank_decile": 8,
               "rows": 1159,
-              "mean_predicted_break_risk": 0.383764,
-              "observed_break_rate": 0.626402,
-              "share_of_all_broken": 0.094151,
-              "lift_vs_test_break_rate": 0.941025
+              "mean_predicted_break_risk": 0.386546,
+              "observed_break_rate": 0.593615,
+              "share_of_all_broken": 0.089223,
+              "lift_vs_test_break_rate": 0.89177
             },
             {
               "risk_rank_decile": 9,
               "rows": 1158,
-              "mean_predicted_break_risk": 0.357863,
-              "observed_break_rate": 0.551813,
-              "share_of_all_broken": 0.082869,
-              "lift_vs_test_break_rate": 0.828973
+              "mean_predicted_break_risk": 0.360484,
+              "observed_break_rate": 0.544041,
+              "share_of_all_broken": 0.081701,
+              "lift_vs_test_break_rate": 0.817297
             },
             {
               "risk_rank_decile": 10,
               "rows": 1159,
-              "mean_predicted_break_risk": 0.305232,
-              "observed_break_rate": 0.462468,
-              "share_of_all_broken": 0.069511,
-              "lift_vs_test_break_rate": 0.694751
+              "mean_predicted_break_risk": 0.306958,
+              "observed_break_rate": 0.442623,
+              "share_of_all_broken": 0.066528,
+              "lift_vs_test_break_rate": 0.664939
             }
           ],
           "capture": {
             "top_10_percent": {
               "rows": 1159,
-              "broken_promises": 931,
-              "share_of_all_broken": 0.120737,
-              "lift_vs_test_break_rate": 1.206741
+              "broken_promises": 913,
+              "share_of_all_broken": 0.118402,
+              "lift_vs_test_break_rate": 1.18341
             },
             "top_20_percent": {
               "rows": 2317,
-              "broken_promises": 1790,
-              "share_of_all_broken": 0.232136,
-              "lift_vs_test_break_rate": 1.160579
+              "broken_promises": 1826,
+              "share_of_all_broken": 0.236805,
+              "lift_vs_test_break_rate": 1.183921
             }
           }
         }
@@ -2303,12 +2326,14 @@
       "cutoff_rule": "score_ts < ptp_created_ts; uses_protected_attributes=false"
     }
   },
-  "signal_assessment": "Signal is modest: held-out ROC AUC is around 0.67 and calibration is weak after the train/test kept-rate shift. Rank lift does not imply action uplift.",
+  "signal_assessment": "Signal remains modest: held-out ROC AUC is around 0.68 and calibration is weak after the train/test kept-rate shift. Rank lift does not imply action uplift.",
   "limitations": [
     "The backtest is observational and cannot establish treatment uplift.",
     "Current C360 identity links map historical bureau records; link provenance is from the later snapshot.",
     "Source event-time cutoffs do not prove complete historical ingestion availability.",
     "The promise-kept model predicts outcome after a promise; it does not estimate which channel causes repayment.",
-    "Protected and routing-only attributes, deposits and transactions are excluded from the model matrix."
+    "Protected and routing-only attributes, deposits and transactions are excluded from the model matrix.",
+    "Employer payroll uses employer_flag=Y; benefit/other-income rows are excluded. The same time holdout selected features, so measured gains may be optimistic.",
+    "Promise amount/overdue was rejected after a near-perfect synthetic-label association; likely target leakage or data-generation artifact."
   ]
 }

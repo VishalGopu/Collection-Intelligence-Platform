@@ -22,13 +22,14 @@ FEATURE_COLUMNS = (
     'recent_contacts_30d', 'recent_rpc_30d', 'card_utilisation',
     'bureau_risk_score', 'bureau_score_change',
 )
+APPROVED_CANDIDATES = ('earlier_kept_rate', 'days_since_last_payroll')
 AUDIT_DATES = ('latest_contact_ts', 'latest_prior_broken_ts',
                'card_snapshot_date', 'bureau_pull_date', 'bureau_previous_pull_date')
 
 
 def model_columns(columns) -> tuple[str, ...]:
     check_feature_columns(columns)
-    unexpected = set(columns) - set(FEATURE_COLUMNS)
+    unexpected = set(columns) - set(FEATURE_COLUMNS + APPROVED_CANDIDATES)
     if unexpected:
         raise ValueError(f'Unapproved model features: {sorted(unexpected)}')
     return tuple(columns)

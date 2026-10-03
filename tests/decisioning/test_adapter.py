@@ -158,7 +158,9 @@ def test_live_model_features_use_earlier_snapshots_and_no_deposit_inputs(adapter
     features = adapter.model_features(context)
     assert features['card_utilisation'] == 0.5
     assert features['bureau_risk_score'] == 760
-    assert features['bureau_score_change'] == 10
+    assert 'bureau_score_change' not in features
+    assert features['earlier_kept_rate'] == 0
+    assert features['days_since_last_payroll'] is None
     assert features['prior_broken_ptp_count_at_creation'] == 1
     assert features['recent_contacts_30d'] == 1
     assert 'ccb_deposit_flag' not in features
