@@ -15,7 +15,7 @@ one were made at the snapshot date. It does not decide the contact channel.
 From the repository root, using the environment described in the dataset guide:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r src/decisioning/requirements.txt pytest
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe src/c360/build.py
 .\.venv\Scripts\python.exe -m src.features.training
 .\.venv\Scripts\python.exe -m src.features.candidates

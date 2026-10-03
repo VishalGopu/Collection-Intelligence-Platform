@@ -14,7 +14,7 @@ Install the module dependency from the repository root:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/python -m pip install -r src/insights/requirements.txt
+.venv/bin/python -m pip install -r requirements.txt
 ```
 
 Ask a released question:

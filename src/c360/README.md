@@ -9,7 +9,7 @@ The release README identifies CRM, Cards, Lending, Core banking, and Collections
 From the repository root:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r src\c360\requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe src\c360\build.py
 ```
 

@@ -21,27 +21,35 @@ The build-phase requirements are in `build_phase.pdf`; the proposed architecture
 
 ## How to run
 
-Work from the repository root. Download the Maple release using [the dataset guide](docs/DATASET_DOWNLOAD.md); it must be extracted at `maple_data/maple_collections_release/`. The dataset and generated files are local and ignored by Git.
+For a fresh clone, work from the repository root and download the Maple release using [the dataset guide](docs/DATASET_DOWNLOAD.md). Extract it at `maple_data/maple_collections_release/`. The dataset and generated files are local and ignored by Git. Python 3.14 is the verified version.
 
 Windows PowerShell:
 
 ```powershell
+git clone git@github.com:VishalGopu/Collection-Intelligence-Platform.git
+cd Collection-Intelligence-Platform
 py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r app\requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m src.c360.build
+.\.venv\Scripts\python.exe -m pytest tests -q
+.\.venv\Scripts\python.exe -m app.smoke
 .\.venv\Scripts\python.exe -m streamlit run app/main.py
 ```
 
 Linux or macOS:
 
 ```bash
+git clone git@github.com:VishalGopu/Collection-Intelligence-Platform.git
+cd Collection-Intelligence-Platform
 python3 -m venv .venv
-.venv/bin/python -m pip install -r app/requirements.txt
+.venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python -m src.c360.build
+.venv/bin/python -m pytest tests -q
+.venv/bin/python -m app.smoke
 .venv/bin/python -m streamlit run app/main.py
 ```
 
-Open the local URL printed by Streamlit. The Customer tab starts with `G-39c6b287f70371cd9fc6`; choose another demo ID or paste a published golden ID. Ask shows answers with evidence and refusals; Recommendation creates a proposal for human review and shows local audit rows. Run `python -m app.smoke` with the virtual-environment Python to check all three tabs against the hero customer; this writes a local test rejection to the ignored audit database. To verify Layer 1, run `python -m pytest tests/c360 -q` after installing `pytest` into that environment.
+Download the dataset before the build command; see the dataset guide for its exact commands and access steps. Open the local URL printed by Streamlit. The Customer tab starts with `G-39c6b287f70371cd9fc6`; choose another demo ID or paste a published golden ID. Ask shows answers with evidence and refusals; Recommendation creates a proposal for human review and shows local audit rows. The smoke command writes a local test rejection to the ignored audit database. Stop the app with Ctrl+C.
 
 The [implemented architecture diagram](docs/architecture_built.png) shows the built components, AI use, and human review. [App interfaces](app/INTERFACES.md) and [hero-flow results](app/INTEGRATION_TEST.md) describe the current integration.
 
