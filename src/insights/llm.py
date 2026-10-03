@@ -64,6 +64,11 @@ class OpenAIResponsesPlanner:
         self.cache_hits = 0
         self.api_calls = 0
         self.api_seconds = 0.0
+        self.retry_count = 0
+        self.rate_limit_count = 0
+        self.rate_limit_wait_count = 0
+        self.rate_limit_wait_seconds = 0.0
+        self.retry_wait_seconds = 0.0
         self.last_api_seconds = 0.0
         self.last_cache_hit = False
         self.last_model = model
@@ -185,6 +190,8 @@ class OpenAIResponsesPlanner:
                 if exc.code not in {408, 409, 429, 500, 502, 503, 504}:
                     break
                 retry_after = self._retry_after(exc) if exc.code == 429 else None
+                if exc.code == 429:
+                    self.rate_limit_count += 1
                 if exc.code == 429 and model != models[-1]:
                     # This model is throttled; try the separately limited backup
                     # before sleeping. Retry-After still governs any retry of it.
@@ -197,7 +204,13 @@ class OpenAIResponsesPlanner:
                 last_error = exc
                 retry_after = None
             if attempt < self.max_attempts:
-                self.sleeper(retry_after if retry_after is not None else min(8.0, 0.5 * (2 ** (attempt - 1))) + random.random() * 0.25)
+                delay = retry_after if retry_after is not None else min(8.0, 0.5 * (2 ** (attempt - 1))) + random.random() * 0.25
+                self.retry_count += 1
+                self.retry_wait_seconds += delay
+                if retry_after is not None:
+                    self.rate_limit_wait_count += 1
+                    self.rate_limit_wait_seconds += delay
+                self.sleeper(delay)
         raise PlannerError(f"LLM planner failed after {self.max_attempts} attempts: {last_error}")
 
     @staticmethod
