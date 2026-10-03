@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import streamlit as st
 
+from app.ask import answer as answer_question
 from app.customer import load_customer
+from app.recommend import connected, latest_audit_rows, recommend, review
 
 
 HERO_ID = "G-39c6b287f70371cd9fc6"
@@ -30,6 +32,7 @@ customer_tab, ask_tab, recommendation_tab = st.tabs(
     ["Customer", "Ask", "Recommendation"]
 )
 
+customer = None
 with customer_tab:
     if "golden_id" not in st.session_state:
         st.session_state.golden_id = HERO_ID
@@ -81,7 +84,96 @@ with customer_tab:
                 st.dataframe(identity["links"], width="stretch", hide_index=True)
 
 with ask_tab:
-    st.info("The Questions team will connect its answer function here. See app/INTERFACES.md.")
+    st.subheader("Ask Collections")
+    st.caption("General metrics and policy answers use the 28 September 2026 release. "
+               "Case questions must refer to a case linked to the selected golden customer.")
+    question = st.text_area("Question", key="ask_question",
+                            placeholder="What is the average days past due of open cases by queue?")
+    if st.button("Get answer", key="ask_submit"):
+        try:
+            st.session_state.ask_result = answer_question(
+                question, golden_customer_id=st.session_state.golden_id.strip(),
+                customer_context=customer if customer and customer["found"] else None,
+            )
+        except Exception as error:
+            st.session_state.ask_result = None
+            st.error(f"Could not answer the question: {error}")
+    result = st.session_state.get("ask_result")
+    if result:
+        if result["refused"]:
+            st.warning(f"Refused: {result['answer']}")
+        else:
+            st.write(result["answer"])
+        st.caption(f"Data date: {result['data_date']} · Scope: {result['scope']} · "
+                   f"Mode: {result['mode']}")
+        st.markdown("**Metric definition**")
+        st.write(result["metric_definition"] or "No certified metric definition applies to this answer.")
+        st.markdown("**SQL or sources**")
+        st.code(result["sql_or_sources"])
 
 with recommendation_tab:
-    st.info("The Decisioning team will connect recommend() here. See app/INTERFACES.md.")
+    st.subheader("Recommendation and human review")
+    selected_id = st.session_state.golden_id.strip()
+    if not connected():
+        st.info("Recommendation is not connected yet. The decisioning module is not available in this checkout.")
+    elif not customer or not customer.get("found"):
+        st.info("Select a published golden customer in the Customer tab first.")
+    else:
+        st.caption("A proposal is created only when requested. It never sends customer contact.")
+        if st.button("Generate recommendation", key="recommend_submit"):
+            try:
+                st.session_state.recommendation = recommend(selected_id)
+            except Exception as error:
+                st.session_state.recommendation = None
+                st.error(f"Could not generate a recommendation: {error}")
+        proposal = st.session_state.get("recommendation")
+        if proposal and proposal.get("customer_id") == selected_id:
+            st.markdown(f"**Action:** {proposal['action']}")
+            st.caption(f"Decision ID: {proposal['decision_id']} · "
+                       f"Snapshot: {proposal['data_snapshot_date']} · "
+                       f"Status: {proposal['status']}")
+            for reason_text in proposal.get("reasons", []):
+                st.write(reason_text)
+            probability = proposal.get("probabilities", {}).get("promise_kept")
+            if probability is not None:
+                st.metric("Promise kept probability", f"{probability:.1%}")
+            st.markdown("**Alternatives**")
+            st.dataframe(proposal.get("alternatives", []), width="stretch", hide_index=True)
+            st.markdown("**Policy checks**")
+            checks = proposal.get("policy_checks", {})
+            st.dataframe([{"action": action, "allowed": check["allowed"],
+                           "reasons": ", ".join(check.get("reasons", []))}
+                          for action, check in checks.items()],
+                         width="stretch", hide_index=True)
+            current_audit = latest_audit_rows(selected_id)
+            already_reviewed = any(row["decision_id"] == proposal["decision_id"]
+                                   and row["disposition"] != "pending_review"
+                                   for row in current_audit)
+            if already_reviewed:
+                st.success("This decision has a recorded human review.")
+            else:
+                allowed = [action for action, check in checks.items()
+                           if check.get("allowed") and action != proposal["action"]]
+                with st.form("review_form"):
+                    reviewer = st.text_input("Reviewer ID")
+                    review_reason = st.text_area("Review reason")
+                    alternative = st.selectbox("Modified action", allowed or ["No permitted alternative"])
+                    approve, modify, reject = st.columns(3)
+                    approve_clicked = approve.form_submit_button("Approve")
+                    modify_clicked = modify.form_submit_button("Modify", disabled=not allowed)
+                    reject_clicked = reject.form_submit_button("Reject")
+                disposition = ("approve" if approve_clicked else "modify" if modify_clicked
+                               else "reject" if reject_clicked else None)
+                if disposition:
+                    try:
+                        event = review(
+                            proposal["decision_id"], disposition=disposition,
+                            reviewer=reviewer, reason=review_reason,
+                            action=alternative if disposition == "modify" else None,
+                        )
+                    except Exception as error:
+                        st.error(f"Review was not recorded: {error}")
+                    else:
+                        st.success(f"Recorded {event['disposition']} review: {event['event_id']}")
+        st.markdown("**Latest audit rows for this customer**")
+        st.dataframe(latest_audit_rows(selected_id), width="stretch", hide_index=True)

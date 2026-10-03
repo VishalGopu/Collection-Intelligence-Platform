@@ -101,6 +101,9 @@ def load_customer(
             current_bucket, current_dpd, overdue_cad, hardship_flag
             FROM customer_cases WHERE golden_customer_id = ?
             ORDER BY case_open_date DESC, case_id LIMIT 50""", [golden_id])
+        case_ids = [row["case_id"] for row in _records(
+            con, "SELECT case_id FROM customer_cases WHERE golden_customer_id = ?", [golden_id]
+        )]
         contacts = _records(con, """SELECT h.contact_id, h.case_id,
             h.contact_ts_local, coalesce(nullif(h.channel_v2, ''), h.channel) AS channel,
             h.direction, h.outcome_code
@@ -125,6 +128,7 @@ def load_customer(
             "summary": summary[0],
             "accounts": accounts,
             "cases": cases,
+            "case_ids": case_ids,
             "contacts": contacts,
             "promises": promises,
             "identity": explain_customer(golden_id, c360),
