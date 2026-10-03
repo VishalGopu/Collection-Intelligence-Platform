@@ -7,6 +7,7 @@ import difflib
 import json
 import os
 import re
+import time
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -92,16 +93,22 @@ class InsightEngine:
         dataset_root: str | Path,
         connection: duckdb.DuckDBPyConnection | None = None,
         llm_planner: SQLPlanner | None = None,
+        cache_database: str | Path | None = None,
     ):
         self.root = Path(dataset_root).resolve()
         self.data = self.root / "data"
         if not (self.root / "README.md").is_file():
             raise FileNotFoundError(f"Dataset release not found at {self.root}")
-        self.connection = connection or duckdb.connect(":memory:")
+        self.connection = connection or duckdb.connect(str(cache_database) if cache_database else ":memory:")
+        self.connection.execute("PRAGMA disable_progress_bar")
+        self.cache_database = cache_database is not None
+        self.query_seconds = 0.0
+        self.query_count = 0
         self._questions = self._read_questions()
         self._metrics = self._read_metrics()
         self.llm_planner = llm_planner or self._planner_from_environment()
         self._register_views()
+        self._catalog = self._catalog_text()
 
     def _read_questions(self) -> dict[str, str]:
         with (self.data / "benchmark_questions.csv").open(newline="", encoding="utf-8") as handle:
@@ -123,7 +130,10 @@ class InsightEngine:
         if not api_key:
             return None
         if not openai_key:
-            return OpenAIResponsesPlanner(api_key=api_key, model=os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b"), provider="groq")
+            return OpenAIResponsesPlanner(
+                api_key=api_key, model=os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b"),
+                fallback_model=os.environ.get("GROQ_FALLBACK_MODEL", "openai/gpt-oss-20b"), provider="groq",
+            )
         return OpenAIResponsesPlanner(api_key=api_key, model=os.environ.get("OPENAI_MODEL", "gpt-5-mini"))
 
     def _register_views(self) -> None:
@@ -133,6 +143,19 @@ class InsightEngine:
         }
         for table in tables:
             path = (self.data / f"{table}.csv").as_posix().replace("'", "''")
+            if self.cache_database and table in {"collections_cases", "contact_history", "promises_to_pay"}:
+                source = self.data / f"{table}.csv"
+                stamp = f"{source.stat().st_size}:{source.stat().st_mtime_ns}"
+                self.connection.execute("CREATE TABLE IF NOT EXISTS insights_cache_meta (table_name VARCHAR PRIMARY KEY, source_stamp VARCHAR)")
+                old = self.connection.execute("SELECT source_stamp FROM insights_cache_meta WHERE table_name = ?", [table]).fetchone()
+                exists = self.connection.execute("SELECT 1 FROM information_schema.tables WHERE table_name = ?", [table]).fetchone()
+                if old != (stamp,) or not exists:
+                    self.connection.execute(f"DROP TABLE IF EXISTS {table}")
+                    self.connection.execute(
+                        f"CREATE TABLE {table} AS SELECT * FROM read_csv('{path}', header=true, sample_size=100000, null_padding=true)"
+                    )
+                    self.connection.execute("INSERT OR REPLACE INTO insights_cache_meta VALUES (?, ?)", [table, stamp])
+                continue
             self.connection.execute(
                 f"CREATE OR REPLACE VIEW {table} AS "
                 f"SELECT * FROM read_csv('{path}', header=true, sample_size=100000, null_padding=true)"
@@ -218,9 +241,12 @@ class InsightEngine:
 
     def _answer_sql(self, qid: str, question: str, sql: str) -> AnswerCard:
         self._validate_sql(sql)
+        query_started = time.monotonic()
         cursor = self.connection.execute(sql)
         columns = [item[0] for item in cursor.description]
         rows = cursor.fetchall()
+        self.query_seconds = getattr(self, "query_seconds", 0.0) + time.monotonic() - query_started
+        self.query_count = getattr(self, "query_count", 0) + 1
         answer = self._format_csv(columns, rows)
         metric_id = self._metric_for_question(qid)
         definition = self._metrics.get(metric_id, {}).get("business_definition") if metric_id else None
@@ -230,8 +256,8 @@ class InsightEngine:
         if self.llm_planner is None:
             return self._could_not_answer(question, "no LLM planner is configured")
         try:
-            plan = self.llm_planner.plan(question, self._catalog_text())
-            sql = self._validate_llm_sql(plan.sql)
+            plan = self.llm_planner.plan(question, getattr(self, "_catalog", None) or self._catalog_text())
+            sql = self._validate_llm_sql(self._normalize_contact_hour_sql(question, plan.sql))
             if plan.metric_id:
                 metric = self._metrics.get(plan.metric_id)
                 if not metric or metric.get("certified_flag") != "true":
@@ -240,9 +266,12 @@ class InsightEngine:
                 query_tables = {table.name.casefold() for table in parse(plan.sql, read="duckdb")[0].find_all(exp.Table)}
                 if sources and not sources.intersection(query_tables):
                     raise ValueError(f"planner used the wrong tables for metric {plan.metric_id}")
+            query_started = time.monotonic()
             cursor = self.connection.execute(sql)
             columns = [item[0] for item in cursor.description]
             rows = cursor.fetchall()
+            self.query_seconds = getattr(self, "query_seconds", 0.0) + time.monotonic() - query_started
+            self.query_count = getattr(self, "query_count", 0) + 1
             if not rows or all(all(value is None for value in row) for row in rows):
                 return AnswerCard("AD-HOC", question, "No rows matched.", sql, False, "empty")
             answer = self._format_csv(columns, rows)
@@ -277,6 +306,32 @@ class InsightEngine:
             for metric_id, row in sorted(self._metrics.items()) if row.get("certified_flag") == "true"
         ]
         return "TABLES\n" + "\n".join(table_lines) + "\nCERTIFIED METRICS\n" + "\n".join(metric_lines)
+
+    @staticmethod
+    def _normalize_contact_hour_sql(question: str, sql: str) -> str:
+        """Apply the certified local-hour grain to generated contact SQL."""
+        if not re.search(r"\b(?:by|per|local) hour\b", question.casefold()) or "utc" in question.casefold():
+            return sql
+        try:
+            statements = parse(sql, read="duckdb")
+        except Exception:
+            return sql  # The validator will give the parse error.
+        if len(statements) != 1:
+            return sql  # Preserve the validator's multi-statement rejection.
+        tree = statements[0]
+        if "contact_history" not in {table.name.casefold() for table in tree.find_all(exp.Table)}:
+            return sql
+
+        def rewrite(node: exp.Expression) -> exp.Expression:
+            if isinstance(node, exp.Column) and node.name.casefold() == "contact_ts_utc":
+                return exp.column("contact_ts_local")
+            if isinstance(node, (exp.TimestampTrunc, exp.Hour, exp.Extract)):
+                rendered = node.sql(dialect="duckdb").casefold()
+                if "hour" in rendered and ("contact_ts_local" in rendered or "contact_ts_utc" in rendered):
+                    return exp.column("contact_hour_local")
+            return node
+
+        return tree.transform(rewrite).sql(dialect="duckdb")
 
     @staticmethod
     def _validate_sql(sql: str) -> None:

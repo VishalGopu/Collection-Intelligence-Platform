@@ -155,13 +155,15 @@ with recommendation_tab:
                 allowed = [action for action, check in checks.items()
                            if check.get("allowed") and action != proposal["action"]]
                 with st.form("review_form"):
-                    reviewer = st.text_input("Reviewer ID")
-                    review_reason = st.text_area("Review reason")
-                    alternative = st.selectbox("Modified action", allowed or ["No permitted alternative"])
+                    reviewer = st.text_input("Reviewer ID", key="reviewer_id")
+                    review_reason = st.text_area("Review reason", key="review_reason")
+                    alternative = st.selectbox("Modified action", allowed or ["No permitted alternative"],
+                                               key="modified_action")
                     approve, modify, reject = st.columns(3)
-                    approve_clicked = approve.form_submit_button("Approve")
-                    modify_clicked = modify.form_submit_button("Modify", disabled=not allowed)
-                    reject_clicked = reject.form_submit_button("Reject")
+                    approve_clicked = approve.form_submit_button("Approve", key="approve_button")
+                    modify_clicked = modify.form_submit_button("Modify", disabled=not allowed,
+                                                               key="modify_button")
+                    reject_clicked = reject.form_submit_button("Reject", key="reject_button")
                 disposition = ("approve" if approve_clicked else "modify" if modify_clicked
                                else "reject" if reject_clicked else None)
                 if disposition:
