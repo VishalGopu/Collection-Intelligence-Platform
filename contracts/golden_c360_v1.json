@@ -38,7 +38,7 @@
       }
     }
   },
-  "join_rule": "For collections_cases, join coll_customer_ref to identity_crosswalk.source_customer_id where source_system = 'crm' and link_status = 'linked'.",
+  "join_rule": "For collections_cases, join coll_customer_ref to identity_crosswalk.source_customer_id where source_system = 'collections' and link_status = 'linked'. For CRM-keyed contacts, promises, and notes, use source_system = 'crm'.",
   "quality_rules": [
     "golden_customer_id is unique and non-null",
     "each source_system and source_customer_id pair maps to at most one golden_customer_id",
