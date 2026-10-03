@@ -25,4 +25,6 @@ To inspect the source keys behind a published customer without displaying DOB, p
 
 The command shows each linked source key, match method, rule-based confidence, and which normalized identity fields agree. A CRM anchor and a Collections reference report their link method instead of raw identity fields. A `review_pending` source has no published golden ID and is intentionally absent from this lookup.
 
+The Streamlit app can import `from src.c360.explain import explain_customer` and call `explain_customer(golden_id)`. It returns a dictionary with `golden_customer_id`, `linked_source_count`, and `links`; each link includes the source key, method, confidence, status, and evidence names.
+
 Run the Layer 1 checks with `.\.venv\Scripts\python.exe -m pytest tests\c360 -q`. The tests cover invalid published links, protected columns, quality-gate failures, and the explanation output. If local Parquet outputs exist, the suite also verifies their row counts and identity invariants against the quality report.

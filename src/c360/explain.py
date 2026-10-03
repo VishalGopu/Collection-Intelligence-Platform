@@ -17,8 +17,11 @@ def _sql_path(path: Path) -> str:
     return "'" + path.resolve().as_posix().replace("'", "''") + "'"
 
 
-def explain_customer(golden_id: str, output_dir: Path) -> list[dict[str, object]]:
-    """Return linked source keys, scores, and the matching evidence for a customer."""
+def explain_customer(
+    golden_id: str, output_dir: Path = Path("local_artifacts/c360")
+) -> dict[str, object]:
+    """Return a Streamlit-ready identity summary from published C360 files."""
+    output_dir = Path(output_dir)
     required = (
         "identity_crosswalk.parquet", "silver_customers.parquet",
         "silver_source_profiles.parquet",
@@ -87,7 +90,11 @@ def explain_customer(golden_id: str, output_dir: Path) -> list[dict[str, object]
             "link_status": status,
             "evidence": evidence,
         })
-    return explanations
+    return {
+        "golden_customer_id": golden_id,
+        "linked_source_count": len(explanations),
+        "links": explanations,
+    }
 
 
 def main() -> None:

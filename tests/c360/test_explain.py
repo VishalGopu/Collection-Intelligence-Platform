@@ -35,13 +35,16 @@ def test_explain_customer_shows_source_evidence(tmp_path: Path) -> None:
         con.close()
 
     result = explain_customer("G-1", tmp_path)
-    assert len(result) == 2
-    card = next(row for row in result if row["source_system"] == "cards")
+    assert result["golden_customer_id"] == "G-1"
+    assert result["linked_source_count"] == 2
+    card = next(row for row in result["links"] if row["source_system"] == "cards")
     assert card["match_confidence"] == 0.99
     assert card["evidence"] == ["date of birth", "postcode", "phone", "surname"]
     assert "4165550100" not in str(result)
     assert "JANE DOE" not in str(result)
-    assert explain_customer("G-missing", tmp_path) == []
+    assert explain_customer("G-missing", tmp_path) == {
+        "golden_customer_id": "G-missing", "linked_source_count": 0, "links": [],
+    }
 
 
 def test_explain_published_customer_when_available() -> None:
@@ -57,6 +60,6 @@ def test_explain_published_customer_when_available() -> None:
     finally:
         con.close()
     result = explain_customer(golden_id, output)
-    assert result
-    assert any(row["source_system"] == "crm" for row in result)
-    assert all(row["link_status"] == "linked" for row in result)
+    assert result["linked_source_count"] > 0
+    assert any(row["source_system"] == "crm" for row in result["links"])
+    assert all(row["link_status"] == "linked" for row in result["links"])
