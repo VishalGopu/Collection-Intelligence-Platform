@@ -1,14 +1,18 @@
 from datetime import datetime
+from pathlib import Path
 
 import duckdb
 import pytest
 
 from src.features.contacts import PROTECTED_FIELDS, ROUTING_ONLY_FIELDS
 from src.features.training import AUDIT_DATES, FEATURE_COLUMNS, model_columns, validate_frame
+from src.decisioning.train import MODEL_COLUMNS
 
 
 def test_training_matrix_excludes_all_protected_and_route_only_inputs():
     assert set(FEATURE_COLUMNS).isdisjoint(PROTECTED_FIELDS | ROUTING_ONLY_FIELDS)
+    assert set(MODEL_COLUMNS).isdisjoint(PROTECTED_FIELDS | ROUTING_ONLY_FIELDS)
+    assert 'ccb_deposit_flag' not in MODEL_COLUMNS
     model_columns(FEATURE_COLUMNS)
     for name in PROTECTED_FIELDS | ROUTING_ONLY_FIELDS:
         with pytest.raises(ValueError):
@@ -52,3 +56,22 @@ def test_duplicate_promise_id_is_invalid(table):
     table.execute('INSERT INTO training_table SELECT * FROM training_table')
     with pytest.raises(ValueError, match='uniqueness'):
         validate_frame(table)
+
+
+@pytest.mark.skipif(not Path('local_artifacts/features/promise_candidates.parquet').is_file(),
+                    reason='Build candidate features first')
+def test_candidate_features_have_only_earlier_source_dates():
+    con = duckdb.connect()
+    try:
+        for filename in ('promise_candidates.parquet', 'open_promise_candidates.parquet'):
+            path = Path('local_artifacts/features') / filename
+            if not path.is_file():
+                continue
+            bad = con.execute('''SELECT count(*) FROM read_parquet(?) WHERE
+                latest_prior_status_ts >= promise_created_ts OR
+                last_payroll_date >= CAST(promise_created_ts AS DATE) OR
+                days_since_last_contact < 0 OR days_since_last_payroll < 0''',
+                [str(path)]).fetchone()[0]
+            assert bad == 0
+    finally:
+        con.close()

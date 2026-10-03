@@ -141,6 +141,9 @@ class RecommendationEngine:
             JOIN read_parquet({quote(candidates)}) c USING(ptp_id)
             JOIN identity_crosswalk x ON x.source_system='crm'
               AND x.link_status='linked' AND x.source_customer_id=p.crm_customer_id
+            JOIN golden_customers g ON g.golden_customer_id=x.golden_customer_id
+              AND g.dq_status='passed'
+            WHERE p.promise_created_ts <= TIMESTAMP '2026-09-28 16:00:00'
             ORDER BY p.ptp_id''').df()
         if frame.empty:
             return []

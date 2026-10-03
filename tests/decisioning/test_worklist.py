@@ -1,6 +1,7 @@
 """Open promise worklist smoke and point-in-time checks on the release."""
 
 from pathlib import Path
+from datetime import datetime
 
 import pytest
 
@@ -15,6 +16,8 @@ def test_open_worklist_is_sorted_and_has_actual_shap_reasons():
         rows = engine.worklist(3)
         assert len(rows) == 3
         assert all(row['customer_id'].startswith('G-') for row in rows)
+        assert all(datetime.fromisoformat(row['promise_created_ts']) <=
+                   datetime(2026, 9, 28, 16) for row in rows)
         assert all(len(row['shap_reasons']) == 3 for row in rows)
         assert all(row['top_reason'] == row['shap_reasons'][0]['label'] for row in rows)
         assert [row['probability_break'] for row in rows] == sorted(
