@@ -3,6 +3,7 @@
   "owner": "Collections data product team",
   "snapshot_date": "2026-09-28",
   "refresh": "batch for hackathon build",
+  "refresh_frequency": "once per dataset release; no scheduled daily refresh in this build",
   "allowed_uses": ["collections context", "governed analytics", "approved feature generation"],
   "prohibited_uses": ["protected-attribute decisioning", "unscoped PII export", "customer action without human review"],
   "outputs": {
@@ -43,6 +44,8 @@
     "golden_customer_id is unique and non-null",
     "each source_system and source_customer_id pair maps to at most one golden_customer_id",
     "match_confidence is between 0 and 1",
+    "published linked source records have match_confidence at least 0.95",
+    "at least 99.5% of collections case rows resolve to a published customer link",
     "unlinked and review_pending records are not used for customer-level answers or decisions",
     "protected attributes are excluded from golden_customers and decision features"
   ]

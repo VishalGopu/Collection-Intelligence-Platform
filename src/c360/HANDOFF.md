@@ -2,7 +2,7 @@
 
 Run `python src/c360/build.py` to create the contracted golden and crosswalk Parquet files. Run `python src/c360/views.py` to register typed, read-only `clean_<table>` views for all 31 release tables in the ignored `local_artifacts/c360/clean_views.duckdb`. The view builder reads `schema/schema.json`, keeps identifiers as text (including leading zeros), casts declared dates, timestamps, booleans and numbers, and normalizes the mixed-format `account_monthly_snapshot.month_end_date` to `DATE`. Source files stay unchanged. These views are a local handoff surface, not a versioned historical warehouse or an authorization boundary; query only the columns needed for a specific approved use.
 
-The published identity interface is `contracts/golden_c360_v1.json`. It has the same core contract elements as the release's `DC-COLL-001` example: owner, refresh, schema, quality rules and allowed/prohibited uses. Its `batch for hackathon build` refresh is a deliberate limitation; it does not claim the daily 05:00 ET schedule of `DC-COLL-001`, which is a different table's contract.
+The published identity interface is `contracts/golden_c360_v1.json`. It has the same core contract elements as the release's `DC-COLL-001` example: owner, output schema, quality rules, allowed/prohibited uses, and an explicit refresh frequency. C360 refreshes once per dataset release in this build; it does not claim the daily 05:00 ET schedule of `DC-COLL-001`, which is a different table's contract.
 
 ## Customer joins
 
