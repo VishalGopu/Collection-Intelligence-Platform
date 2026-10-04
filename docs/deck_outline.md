@@ -7,7 +7,7 @@ policy-checked proposal they can review before any action.
 
 ## 2. Built flow
 
-The Streamlit Customer, Ask, Recommendation, and Worklist tabs connect a
+The Streamlit sign-in, dashboard, Customer 360, Ask, Decision review, and Priority queue connect a
 Python/DuckDB C360 build, governed SQL/documents, point-in-time features,
 LightGBM/SHAP, a policy gate, and SQLite review audit. Hero:
 `G-39c6b287f70371cd9fc6`.
@@ -73,5 +73,5 @@ follows from these observations.
 Use a controlled pilot with fixed policy and model versions, explicit consent,
 authentication, monitoring, and outcome measurement to test whether agent
 decisions improve. The current demo is local, synthetic, and does not execute
-customer contact. Exact dependencies are pinned and 191 tests pass in the current
+customer contact. Exact dependencies are pinned and 193 tests pass in the current
 checkout; the earlier fresh-clone result is documented separately.

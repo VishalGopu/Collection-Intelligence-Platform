@@ -1,12 +1,14 @@
-"""Exercise the three Streamlit tabs with the verified hero customer."""
+"""Exercise demo sign-in and the core Streamlit pages with the hero customer."""
 
 from __future__ import annotations
 
 from pathlib import Path
+import os
 
 from streamlit.testing.v1 import AppTest
 
 from app.customer import load_customer
+from app.auth import configured_password
 from app.recommend import latest_audit_rows
 
 
@@ -18,11 +20,18 @@ def main() -> None:
     assert customer["found"] and customer["cases"] and customer["contacts"]
     assert customer["promises"] and customer["identity"]["links"]
 
+    configured_password()
     app = AppTest.from_file(str(Path(__file__).with_name("main.py")), default_timeout=120).run()
+    assert not app.exception and app.text_input(key="login_user")
+    app.text_input(key="login_user").set_value("agent")
+    app.text_input(key="login_password").set_value(os.getenv("COLLECTIONS_DEMO_PASSWORD") or "demo")
+    app.button(key="login_submit").click().run()
+    assert app.session_state["auth_user"]["role"] == "agent"
+    app.radio(key="page").set_value("Customer 360").run()
     assert not app.exception and not app.error
-    assert [tab.label for tab in app.tabs] == ["Customer", "Ask", "Recommendation", "Worklist"]
-    assert app.text_input(key="golden_id").value == HERO_ID
+    assert app.text_input(key="customer_input").value == HERO_ID
 
+    app.radio(key="page").set_value("Ask Collections").run()
     app.text_area(key="ask_question").set_value(
         "What is the average days past due of open cases by queue?"
     ).run()
@@ -39,6 +48,7 @@ def main() -> None:
     assert app.session_state["ask_result"]["refused"]
     assert any("Refused:" in item.value for item in app.warning)
 
+    app.radio(key="page").set_value("Decision review").run()
     app.button(key="recommend_submit").click().run()
     assert not app.exception and not app.error
     proposal = app.session_state["recommendation"]
@@ -57,6 +67,10 @@ def main() -> None:
     )
     assert any(row["decision_id"] == proposal["decision_id"]
                and row["disposition"] == "reject" for row in latest_audit_rows(HERO_ID))
+
+    app.radio(key="page").set_value("Priority queue").run()
+    app.button(key="worklist_submit").click().run()
+    assert app.session_state["worklist_rows"]
 
     print({
         "hero_id": HERO_ID,

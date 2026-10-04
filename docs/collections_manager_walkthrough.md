@@ -1,16 +1,16 @@
 # Collections manager walkthrough: from portfolio question to reviewed action
 
-Use this as a 6–8 minute live presentation. The two roles are **collections manager** (understands workload and assigns attention) and **collections specialist/agent** (reviews one customer and records a decision). They are demo personas: the current local app does not implement role-based login or permissions.
+Use this as a 6–8 minute live presentation. The two roles are **collections manager** (understands workload and assigns attention) and **collections specialist/agent** (reviews one customer and records a decision). The sign-in and review-role restriction are local demo UI controls, not production authentication or authorization.
 
 > **Opening line:** “You ask a question about the collections book, find a case that needs attention, and hand the agent one linked customer record. The system proposes a policy-checked next step and explains it. A person still makes and records the decision.”
 
-The demo uses the synthetic release dated **28 September 2026**. Start the app from the repository root with `python -m streamlit run app/main.py` using the project virtual environment. The local C360 build and customer-page cache must already exist; see the [run instructions](../README.md#how-to-run).
+The demo uses the synthetic release dated **28 September 2026**. Start the app from the repository root with `python -m streamlit run app/main.py` using the project virtual environment. The local C360 build and customer-page cache must already exist; see the [run instructions](../README.md#how-to-run). Sign in as `manager / demo` for the portfolio segment. Set `COLLECTIONS_DEMO_PASSWORD` in the ignored `.env` if the demo password has been changed.
 
 ## Role 1 — Collections manager: ask, inspect, prioritize
 
 ### 1. Ask a portfolio question (about 1 minute)
 
-Open **Ask**, leave **Scope: All Collections**, and paste:
+Show the **Dashboard**: real open-case, overdue, open-promise, and golden-customer totals, a weekly case chart, arrears-age distribution, and queue overview. Then open **Ask Collections** in the sidebar, leave **Scope: All Collections**, and paste:
 
 > How many open cases are there, and list top 10?
 
@@ -32,9 +32,9 @@ These three exact prompts use governed routes and do not need an external LLM. N
 
 ### 2. Find work that deserves review (about 45 seconds)
 
-Open **Worklist** and click **Load worklist**. It shows 20 linked, open promises ordered by predicted break risk, with a top model reason. Explain that it helps the manager decide what to review first; it is **not** a list of approved actions. The probability is a model estimate, and a high score cannot override contact policy or specialist routing.
+Open **Priority queue** and click **Load worklist**. It shows 20 linked, open promises ordered by predicted break risk, with a top model reason. Explain that it helps the manager decide what to review first; it is **not** a list of approved actions. The probability is a model estimate, and a high score cannot override contact policy or specialist routing. Selecting a row opens that customer in Customer 360.
 
-For a reproducible handoff, use customer `G-39c6b287f70371cd9fc6`. In **Customer**, expand **Browse all linked customers**, keep the default **Open cases and promises** filter, search `39c6b287f70371cd9fc6`, and click its row. The browser also offers open cases, any promise, broken promises, open promises, and all linked customers. It shows ten rows per page and the relevant counts.
+For a reproducible handoff, use customer `G-39c6b287f70371cd9fc6`. In **Customer 360**, expand **Browse linked customers**, keep the default **Open cases and promises** filter, search `39c6b287f70371cd9fc6`, and click its row. The browser also offers open cases, any promise, broken promises, open promises, and all linked customers. It shows ten rows per page and the relevant counts.
 
 > **Handoff line:** “Here is a customer with both an open case and promise history. Before any action, the agent needs to see whether these records really belong together and what policy permits.”
 
@@ -42,9 +42,9 @@ For a reproducible handoff, use customer `G-39c6b287f70371cd9fc6`. In **Customer
 
 ### 3. Inspect one linked customer (about 1 minute)
 
-On **Customer**, show **Why linked?** first. Point to source record, observed match evidence, match rule, confidence, and link status. Then show the snapshot, cases, contacts, and promises. The hero has **1 open case** and **4 linked promises**. Say: “The evidence makes the joined view reviewable. The match confidence is a rule score, not a calibrated probability.”
+Sign out and sign in as `agent / demo` to show the specialist role. On **Customer 360**, show **Why these records are linked** first. Point to source record, observed match evidence, match rule, confidence, and link status. Then show the snapshot, cases, contacts, and promises. The hero has **1 open case** and **4 linked promises**. Say: “The evidence makes the joined view reviewable. The match confidence is a rule score, not a calibrated probability.”
 
-Return to **Ask**, select **Scope: This customer**, and paste these questions one at a time:
+Open **Ask Collections**, select **Scope: This customer**, and paste these questions one at a time:
 
 | Exact question | Expected result | What to point out |
 | --- | --- | --- |
@@ -55,7 +55,7 @@ The scope label must say **selected golden customer**. A customer-specific quest
 
 ### 4. Generate a policy-checked proposal (about 1 minute)
 
-Open **Recommendation** and click **Generate recommendation**. For this hero, the proposal is **`specialist_review`** because the case hardship flag requires that route. Read the **first reason** aloud: the policy trigger comes before model factors. The app then shows three SHAP model factors as context, dated text evidence when available, and a **Blocked actions** panel. For this case, ordinary `call`, `sms`, and `email` are blocked with reason `specialist_route_required`.
+Open **Decision review** and click **Generate recommendation**. For this hero, the proposal is **`specialist_review`** because the case hardship flag requires that route. Read the **first reason** aloud: the policy trigger comes before model factors. The app then shows three SHAP model factors as context, dated text evidence when available, and a **Blocked actions** panel. For this case, ordinary `call`, `sms`, and `email` are blocked with reason `specialist_route_required`.
 
 Say: “The model informs the review, but policy decides what is permitted. Hardship and vulnerability flags route to a specialist; they are not model features or ranking inputs. A text signal alone cannot trigger adverse treatment.”
 
@@ -69,4 +69,4 @@ If you want to demonstrate an ordinary eligible case afterward, select `G-b1714e
 
 > “The product joins customer records, answers scoped questions with visible evidence, ranks open promises for human review, and prevents a model score from bypassing policy. It gives our manager a clearer view and our agent a reviewable next step. We have **not** shown that it increases collections recovery.”
 
-The retrospective promise model has **0.677 ROC-AUC** and **0.2245 calibrated Brier score** on a chronological test period; the signal is modest. Historical channel rates are observational because agents chose the channels. The synthetic data is a fixed snapshot, and this local demo has typed reviewer IDs rather than production authentication. A pilot would need a controlled comparison, consent and policy review, authentication, monitoring, and measured customer outcomes before any uplift claim. See the [deck evidence](deck_outline.md), [model metrics](../src/decisioning/artifacts/promise_model_metrics.json), and [full limitations](../README.md#honest-limitations).
+The retrospective promise model has **0.677 ROC-AUC** and **0.2245 calibrated Brier score** on a chronological test period; the signal is modest. Historical channel rates are observational because agents chose the channels. The synthetic data is a fixed snapshot, and this local demo has demo-only sign-in rather than production authentication. A pilot would need a controlled comparison, consent and policy review, authentication, monitoring, and measured customer outcomes before any uplift claim. See the [deck evidence](deck_outline.md), [model metrics](../src/decisioning/artifacts/promise_model_metrics.json), and [full limitations](../README.md#honest-limitations).
