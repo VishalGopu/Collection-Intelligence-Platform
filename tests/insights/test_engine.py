@@ -217,6 +217,41 @@ class FakePlanner:
         return self.result
 
 
+@pytest.mark.parametrize(
+    "canonical,changed,sql,literal",
+    [
+        ("How many open cases are 60 or more days past due?",
+         "How many open cases are 90 or more days past due?",
+         "SELECT count(*) AS cases FROM collections_cases WHERE case_status='open' AND current_dpd >= 90", "90"),
+        ("How many open cases are there?", "How many closed cases are there?",
+         "SELECT count(*) AS cases FROM collections_cases WHERE case_status='closed'", "'closed'"),
+        ("How many cases opened after 1 September 2026?",
+         "How many cases opened after 2 September 2026?",
+         "SELECT count(*) AS cases FROM collections_cases WHERE case_open_date > DATE '2026-09-02'", "2026-09-02"),
+        ("How many contacts used the call channel?",
+         "How many contacts used the sms channel?",
+         "SELECT count(*) AS contacts FROM contact_history WHERE channel='sms'", "'sms'"),
+    ],
+    ids=["changed_number_90_vs_60", "changed_status_closed_vs_open",
+         "changed_date_2_vs_1_september", "changed_channel_sms_vs_call"],
+)
+def test_changed_constraint_never_reuses_certified_sql(
+    fixture_root: Path, canonical: str, changed: str, sql: str, literal: str
+) -> None:
+    engine = bare_engine(fixture_root)
+    engine._questions = {"Q": canonical}
+    engine.connection.execute("""CREATE TABLE collections_cases(
+        case_status VARCHAR, current_dpd INTEGER, case_open_date DATE)""")
+    engine.connection.execute("CREATE TABLE contact_history(channel VARCHAR)")
+    engine.llm_planner = FakePlanner(sql)
+    assert engine._match_question(changed) is None
+    card = engine.answer(changed, "Q")
+    assert engine.llm_planner.calls == 1
+    assert card.mode == "llm_sql"
+    assert not card.refused
+    assert literal in card.sql_or_sources
+
+
 def llm_engine(root: Path, sql: str) -> InsightEngine:
     engine = bare_engine(root)
     engine.connection.execute("CREATE TABLE collections_cases(queue VARCHAR, current_dpd INTEGER)")
