@@ -58,6 +58,26 @@ with customer_tab:
             else:
                 summary = customer["summary"]
                 st.subheader(golden_id)
+                identity = customer["identity"]
+                st.markdown("### Why linked?")
+                st.caption(f"{identity['linked_source_count']} linked source records. "
+                           "The evidence below shows which normalized fields agree with a linked CRM record; "
+                           "it does not reveal the underlying birth dates, phone numbers, postcodes, or hashes. "
+                           "Confidence scores are rule based, not calibrated probabilities.")
+                st.dataframe([
+                    {
+                        "Source": link["source_system"].replace("_", " ").title(),
+                        "Source record": link["source_customer_id"],
+                        "Evidence observed": "; ".join(link["evidence"]),
+                        "Match rule": link["match_method"].replace("_", " "),
+                        "Confidence": f"{link['match_confidence']:.0%}",
+                        "Status": link["link_status"],
+                    }
+                    for link in identity["links"]
+                ], width="stretch", hide_index=True,
+                   column_config={"Evidence observed": st.column_config.TextColumn(width="large")})
+
+                st.subheader("Customer snapshot")
                 a, b, c, d = st.columns(4)
                 a.metric("CRM records", summary["crm_record_count"])
                 b.metric("Open cases", summary["open_case_count"])
@@ -77,12 +97,6 @@ with customer_tab:
                     st.dataframe(customer[key], width="stretch", hide_index=True)
                     if len(customer[key]) == 50:
                         st.caption("Showing the 50 most recent records.")
-
-                st.subheader("Why linked?")
-                identity = customer["identity"]
-                st.caption(f"{identity['linked_source_count']} linked source keys. "
-                           "Confidence scores are rule based and are not calibrated probabilities.")
-                st.dataframe(identity["links"], width="stretch", hide_index=True)
 
 with ask_tab:
     st.subheader("Ask Collections")

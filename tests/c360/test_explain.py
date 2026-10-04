@@ -14,14 +14,15 @@ def test_explain_customer_shows_source_evidence(tmp_path: Path) -> None:
         con.execute("""CREATE TABLE identity_crosswalk AS
             SELECT * FROM (VALUES
               ('crm', 'C-1', 'G-1', 'crm_anchor', 1.0, 'linked'),
+              ('crm', 'C-2', 'G-1', 'crm_anchor', 1.0, 'linked'),
               ('cards', 'A-1', 'G-1', 'dob_postal_phone_name', 0.99, 'linked'),
               ('lending', 'L-2', NULL, 'no_match', 0.82, 'review_pending')
             ) AS t(source_system, source_customer_id, golden_customer_id,
                    match_method, match_confidence, link_status)""")
-        con.execute("""CREATE TABLE silver_customers AS SELECT
-            'C-1' AS crm_id, 'G-1' AS golden_customer_id,
-            DATE '1980-01-01' AS dob, 'A1A1A1' AS postal,
-            '4165550100' AS phone, 'DOE' AS surname""")
+        con.execute("""CREATE TABLE silver_customers AS SELECT * FROM (VALUES
+            ('C-1', 'G-1', 'same-hash', NULL::VARCHAR, DATE '1980-01-01', 'A1A1A1', '4165550100', 'DOE'),
+            ('C-2', 'G-1', 'same-hash', NULL::VARCHAR, DATE '1980-01-01', 'A1A1A1', '4165550100', 'DOE')
+            ) AS t(crm_id, golden_customer_id, id_hash, duplicate_of_id, dob, postal, phone, surname)""")
         con.execute("""CREATE TABLE silver_source_profiles AS SELECT
             'cards' AS source_system, 'A-1' AS source_customer_id,
             DATE '1980-01-01' AS dob, 'A1A1A1' AS postal,
@@ -36,10 +37,13 @@ def test_explain_customer_shows_source_evidence(tmp_path: Path) -> None:
 
     result = explain_customer("G-1", tmp_path)
     assert result["golden_customer_id"] == "G-1"
-    assert result["linked_source_count"] == 2
+    assert result["linked_source_count"] == 3
     card = next(row for row in result["links"] if row["source_system"] == "cards")
     assert card["match_confidence"] == 0.99
     assert card["evidence"] == ["date of birth", "postcode", "phone", "surname"]
+    crm = next(row for row in result["links"] if row["source_customer_id"] == "C-1")
+    assert crm["evidence"] == ["exact national-ID hash agreement with another linked CRM record"]
+    assert "same-hash" not in str(result)
     assert "4165550100" not in str(result)
     assert "JANE DOE" not in str(result)
     assert explain_customer("G-missing", tmp_path) == {

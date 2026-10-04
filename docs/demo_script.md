@@ -14,7 +14,7 @@ Open the Customer tab. Say: “This is a published 28 September C360 snapshot. E
 
 ## 0:35–1:10 — Show identity evidence
 
-Scroll to “Why linked?”. Say: “The system exposes the source keys and matching evidence instead of asking us to trust a black-box score. This customer has six linked keys; the confidence is rule-based, and ambiguous links stay out of customer views.” Mention the CRM anchor, Collections reference, and DOB/postcode/phone/surname evidence without reading any protected value.
+At the top of the Customer page, point to “Why linked?”. Say: “These six source records are linked by visible evidence: the CRM records share an exact hashed-ID match, Collections uses a CRM reference, and the account sources show which normalized identity fields agree. The table shows source keys, methods, confidence, and link status without exposing personal values. Confidence is rule based; ambiguous links stay out of customer views.”
 
 ## 1:10–1:55 — Show a certified Ask answer
 

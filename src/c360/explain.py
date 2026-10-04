@@ -31,6 +31,7 @@ def explain_customer(
             raise FileNotFoundError(f"Missing {output_dir / name}; run src/c360/build.py")
     con = duckdb.connect(":memory:")
     try:
+        con.execute("SET memory_limit='2GB'")
         rows = con.execute(f"""
             WITH linked AS (
               SELECT source_system, source_customer_id, golden_customer_id,
@@ -65,13 +66,38 @@ def explain_customer(
              AND e.source_customer_id = x.source_customer_id
             ORDER BY x.source_system, x.source_customer_id
         """, [golden_id]).fetchall()
+        crm_proof = {
+            crm_id: (bool(hash_agreement), bool(duplicate_reference))
+            for crm_id, hash_agreement, duplicate_reference in con.execute(f"""
+                WITH linked_crm AS (
+                  SELECT s.crm_id, s.id_hash, s.duplicate_of_id
+                  FROM read_parquet({_sql_path(output_dir / 'silver_customers.parquet')}) s
+                  JOIN read_parquet({_sql_path(output_dir / 'identity_crosswalk.parquet')}) x
+                    ON x.source_system = 'crm' AND x.source_customer_id = s.crm_id
+                  WHERE x.golden_customer_id = ? AND x.link_status = 'linked'
+                )
+                SELECT a.crm_id,
+                  bool_or(a.id_hash IS NOT NULL AND a.id_hash = b.id_hash) AS hash_agreement,
+                  bool_or(a.duplicate_of_id = b.crm_id OR b.duplicate_of_id = a.crm_id)
+                    AS duplicate_reference
+                FROM linked_crm a LEFT JOIN linked_crm b ON a.crm_id <> b.crm_id
+                GROUP BY a.crm_id
+            """, [golden_id]).fetchall()
+        }
     finally:
         con.close()
 
     explanations = []
     for system, source_id, method, confidence, status, dob, postal, phone, surname in rows:
         if system == "crm":
-            evidence = ["CRM source record; duplicate grouping uses national-ID hash or explicit duplicate reference"]
+            hash_agreement, duplicate_reference = crm_proof.get(source_id, (False, False))
+            evidence = []
+            if hash_agreement:
+                evidence.append("exact national-ID hash agreement with another linked CRM record")
+            if duplicate_reference:
+                evidence.append("explicit CRM duplicate reference")
+            if not evidence:
+                evidence.append("CRM anchor record")
         elif system == "collections":
             evidence = [
                 "CRM customer reference" if method == "crm_reference"
