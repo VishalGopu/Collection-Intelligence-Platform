@@ -146,6 +146,20 @@ def test_cases_after_2030_are_global_filtered_and_empty(fixture_root: Path, stat
     assert "C:/Users/" not in card.sql_or_sources
 
 
+@pytest.mark.parametrize("opening,closing", [("\"", "\""), ("'", "'"), ("“", "”")])
+def test_quoted_case_date_question_keeps_certified_route(
+    fixture_root: Path, opening: str, closing: str
+) -> None:
+    engine = bare_engine(fixture_root)
+    engine.connection.execute("CREATE TABLE collections_cases(case_id VARCHAR, case_status VARCHAR, case_open_date DATE)")
+    question = f"{opening}Show closed cases created after 1 January 2030.{closing}"
+    card = engine.answer(question)
+    assert card.mode == "empty"
+    assert not card.refused
+    assert "case_status = 'closed'" in card.sql_or_sources
+    assert "2030-01-01" in card.sql_or_sources
+
+
 def test_changed_date_number_and_status_never_reuse_saved_route(fixture_root: Path) -> None:
     engine = bare_engine(fixture_root)
     engine._questions = {"Q": "Show 10 open cases created after 1 January 2030"}

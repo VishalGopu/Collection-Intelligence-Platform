@@ -234,6 +234,10 @@ class InsightEngine:
 
     def _answer_cases_after(self, question: str) -> AnswerCard | None:
         normalized = re.sub(r"\s+", " ", question.strip())
+        for opening, closing in (("\"", "\""), ("'", "'"), ("“", "”"), ("‘", "’")):
+            if normalized.startswith(opening) and normalized.endswith(closing):
+                normalized = normalized[1:-1].strip()
+                break
         match = re.fullmatch(r"(?:show(?: me)?|list)(?: all)? (open|closed) cases created after (\d{1,2}) (january|february|march|april|may|june|july|august|september|october|november|december) (\d{4})[?.!]?", normalized, re.I)
         if not match:
             return None
