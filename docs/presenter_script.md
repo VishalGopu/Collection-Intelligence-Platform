@@ -50,6 +50,10 @@ Example customer: **`G-883e676faa7837d10aa7`**. This is a useful example because
 
 **Say:** “The `G-...` ID is our cross-system identifier. The browser can search all linked customers or filter for open cases, promises, and broken promises; it shows ten rows per page. Clicking a row selects that customer. We will inspect the evidence before treating records from different systems as one person.”
 
+**Do:** Expand **C360 coverage and records needing review** if the manager asks how many records made it into C360.
+
+**Say:** “The quality report publishes **1,001,258 golden customers**: **986,075** passed profile checks and **15,183** need profile review. Separately, **85,365 source records** have links pending review, **69,456 source records** are unlinked, and **1,386 of 367,229 case rows** lack a published customer link. Source-record counts are not unique people; some cases can have more than one issue. We retain uncertain records for steward review and keep them out of customer-level decisions rather than pretending they were safely linked.”
+
 **Do:** Start with **Why these records are linked**.
 
 **Say:** “There are **five linked source records**: CRM, collections, cards, lending, and core banking. **Source record** is each system’s original reference. **Evidence observed** names the fields that agreed, such as date of birth, postcode, phone, surname, or a CRM reference; the page hides the raw values. **Match rule** tells us how the link was formed. **Confidence** is a rule score, **not** a calibrated probability of identity. **Status** shows that the record is linked. The minimum displayed match confidence is **0.97**, and the customer’s data-quality status is **passed**.”

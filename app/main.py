@@ -13,6 +13,7 @@ from app.ask import answer as answer_question
 from app.answer_display import display_answer
 from app.auth import authenticate, configured_password
 from app.catalog import browse_customers
+from app.c360_coverage import coverage_snapshot
 from app.customer import load_customer
 from app.dashboard import portfolio_snapshot
 from app.recommend import connected, latest_audit_rows, recommend, review, worklist
@@ -59,6 +60,11 @@ def cached_customer_page(search: str, after_id: str | None, activity_filter: str
 @st.cache_data(show_spinner="Loading the portfolio snapshot…")
 def cached_portfolio() -> dict:
     return portfolio_snapshot()
+
+
+@st.cache_data(show_spinner=False)
+def cached_c360_coverage() -> dict:
+    return coverage_snapshot()
 
 
 def change_page(page: str) -> None:
@@ -268,6 +274,25 @@ def render_customer_browser() -> None:
 def render_customer() -> None:
     page_header("Customer intelligence", "Customer 360",
                 "One linked record with the source evidence, case history, and promises behind it.")
+
+    with st.expander("C360 coverage and records needing review", expanded=False):
+        try:
+            coverage = cached_c360_coverage()
+        except (FileNotFoundError, KeyError, ValueError) as error:
+            st.info(f"C360 quality report unavailable: {error}")
+        else:
+            a, b, c, d, e = st.columns(5)
+            a.metric("Golden customers", f"{coverage['golden_customers']:,}")
+            b.metric("Profile review needed", f"{coverage['needs_review_customers']:,}")
+            c.metric("Links pending review", f"{coverage['review_pending_source_records']:,}")
+            d.metric("Unlinked source records", f"{coverage['unlinked_source_records']:,}")
+            e.metric("Cases without link", f"{coverage['cases_without_link']:,}")
+            st.caption(f"{coverage['passed_customers']:,} golden customers passed profile checks. "
+                       f"{coverage['cases_without_link']:,} of {coverage['total_cases']:,} case rows "
+                       "have no published customer link. Source-record counts include cards, lending, "
+                       "deposits, and collections; they are not unique people.")
+            st.caption("Nothing is silently discarded: uncertain links remain pending or unlinked for "
+                       "steward review and are excluded from customer-level decisions. Counts can overlap.")
 
     def update_customer_input() -> None:
         st.session_state.golden_id = st.session_state.customer_input.strip()
