@@ -17,6 +17,8 @@ Hackathon build for a golden customer view (C360), grounded collections question
 
 Use [the dataset guide](docs/DATASET_DOWNLOAD.md) to download the release locally. The dataset, virtual environment, text annotation cache, and generated Parquet files are not committed.
 
+For a live presentation, follow the [two-role collections manager walkthrough](docs/collections_manager_walkthrough.md). The [deck outline](docs/deck_outline.md), [architecture diagram](docs/architecture_built.png), [C360 contract](contracts/golden_c360_v1.json), and [benchmark evidence](docs/insights/gemini_released_35.md) cover the main review material. Module-specific implementation details live beside the code.
+
 The build-phase requirements are in `build_phase.pdf`; the proposed architecture is in `HACKERS_SystemDesign.pdf`.
 
 ## How to run
@@ -67,7 +69,7 @@ For the official benchmark output, run `python -m src.insights.submission --ques
 
 `app.prepare_customer_data` builds an optional, ignored DuckDB cache of only the Customer page's approved source columns, with lookup indexes. Build it once after the C360 output; the app uses it when current and falls back to the raw release otherwise. On this laptop, the hero's uncached customer load took 43.0 seconds and the indexed load took 1.57 seconds; the second customer's load fell from 48.0 to 0.85 seconds. The cache build took about 25 seconds and uses a 1 GB DuckDB memory limit.
 
-The [implemented architecture diagram](docs/architecture_built.png) shows the built components, AI use, and human review. [App interfaces](app/INTERFACES.md) and [hero-flow results](app/INTEGRATION_TEST.md) describe the current integration.
+The [implemented architecture diagram](docs/architecture_built.png) shows the built components, AI use, and human review. [App interfaces](app/INTERFACES.md) describe the current integration; the [manager walkthrough](docs/collections_manager_walkthrough.md) gives the verified live flow.
 
 ## What changed from the design
 

@@ -1,12 +1,12 @@
 # Layer 2: Insight and NLP
 
-Own certified metric queries, policy/document retrieval, out-of-scope refusal, cited answer cards, and automated benchmark answer generation. Keep implementation and module dependencies in this directory, and tests in `tests/insights/`.
+This module handles certified metric queries, policy/document retrieval, out-of-scope refusal, cited answer cards, and automated benchmark answer generation.
 
-Develop first against the release's read-only DuckDB views and benchmark files. When C360 is ready, consume only the paths and columns in `contracts/golden_c360_v1.json`. Every answer must show the executed SQL or source document/record IDs. Do not edit C360 pipeline code.
+It reads the release through read-only DuckDB views and uses the C360 crosswalk for supported customer-scoped questions. Every answered question shows executed SQL or source document/record IDs.
 
 ## Current implementation
 
-The local MVP uses deterministic routing and read-only DuckDB queries. Questions are routed to certified SQL, current policy/procedure documents, case-scoped transcripts, or a safety refusal. This keeps benchmark answers reproducible and makes the evidence visible without requiring an external LLM.
+Released questions use deterministic routing to certified SQL, current policy/procedure documents, case-scoped transcripts, or a safety refusal. Unknown safe analytics questions may use the optional LLM SQL planner; its query is validated before read-only execution.
 
 Routing is deliberately strict. A released question ID always uses its governed route. Text-only routing requires an exact or near-exact match and rejects changed dates, numbers, case IDs, dimensions, or negation. Other safe questions use the optional LLM SQL planner; they never inherit a loosely matched canned answer.
 
@@ -31,7 +31,7 @@ Generate the benchmark submission (all questions, or add `--split dev` while dev
   --benchmark local_artifacts/insights/benchmark_answers.csv
 ```
 
-The generated CSV contains `question_id`, `answer`, `sql_or_sources`, and `refused`. The runner never modifies source data. Unknown ad-hoc questions fail closed unless they exactly match a governed route; protected-attribute profiling and bulk PII exports are refused explicitly.
+The generated CSV contains `question_id`, `answer`, `sql_or_sources`, and `refused`. The runner never modifies source data. Unsupported questions fail closed; protected-attribute profiling and bulk PII exports are refused explicitly.
 
 Run the unit tests with:
 
@@ -65,8 +65,8 @@ The runner keeps a local DuckDB cache of the three large CSV tables and builds t
 
 ## Optional LLM SQL fallback
 
-Set `OPENAI_API_KEY` and, optionally, `OPENAI_MODEL` to enable unknown analytics questions. A Groq-compatible endpoint is also available through `GROQ_API_KEY`, `GROQ_MODEL` (default: `openai/gpt-oss-120b`), and `GROQ_FALLBACK_MODEL` (default: `openai/gpt-oss-20b`). OpenAI takes precedence if both keys are set. Without a key, unknown questions fail closed. The fallback uses structured output, retries transient failures up to three times (respecting Groq's `Retry-After` on 429), switches to the backup model on failure, and caches successful plans in `local_artifacts/insights/llm_cache.json`. The cache key includes provider, both models, and prompt version. Groq requests use the `curl` executable because this environment's edge rejects Python HTTP clients.
+Set `INSIGHTS_LLM_PROVIDER=gemini`, `groq`, or `openai` in the ignored `.env` along with the matching `GEMINI_API_KEY`, `GROQ_API_KEY`, or `OPENAI_API_KEY`. Without an explicit provider, OpenAI is selected if its key exists; otherwise Groq is selected. Without a key for the selected provider, unknown questions fail closed. Optional model variables are `GEMINI_MODEL`, `GROQ_MODEL`, `GROQ_FALLBACK_MODEL`, and `OPENAI_MODEL`. The planner retries transient failures, respects Groq's `Retry-After` on 429, and caches successful plans in `local_artifacts/insights/llm_cache.json`. Its cache key includes provider, models, and prompt version. Groq requests use the `curl` executable because this environment's edge rejects Python HTTP clients.
 
 Every generated query is parsed before execution. It must be one read-only statement over approved views, cannot reference protected or direct-identifier columns, cannot call file/network readers, cannot use a cross join, and is wrapped in a 200-row output limit. Invalid SQL and execution errors return `I couldn't answer this` with a reason; an empty result returns `No rows matched.` with the validated SQL. The system does not guess.
 
-AI tools used: Groq API with `openai/gpt-oss-120b` and `openai/gpt-oss-20b` fallback for SQL planning only; answers come from validated, read-only DuckDB query results. OpenAI API is an optional alternate SQL planner. No API key or response cache is committed.
+AI providers are used for SQL planning only; answers come from validated, read-only DuckDB query results. No API key or response cache is committed.

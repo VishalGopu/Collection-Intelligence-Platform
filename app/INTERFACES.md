@@ -3,17 +3,20 @@
 All four tabs are connected in `app/main.py`. Customer-level joins require published C360 links with `link_status = 'linked'`; fairness-test fields stay out of displayed answers and decision features. Ask defaults to All Collections and has an explicit This customer selector. The selected scope supports only certified customer routes and refuses unsupported filters. Recommendation uses the selected `golden_customer_id` and shows blocked actions with policy reasons. Worklist shows open promises ranked for human review.
 
 The Customer tab has a searchable, 10-at-a-time browser over all published
-CRM-linked golden customers. Its count, rows, search, and page cursors are
-queried from C360 Parquet in DuckDB with a 1 GB memory limit. Only the golden
-ID and non-protected case summary fields appear. Clicking a row updates the
-same Customer, Ask, and Recommendation ID state.
+CRM-linked golden customers. Its count, rows, search, activity filter, and page
+cursors are queried from C360 Parquet and the local customer-activity cache in
+DuckDB with a 1 GB memory limit. It defaults to linked customers with both an
+open case and promise history. Only the golden ID and non-protected case and
+promise counts appear. Clicking a row updates the same Customer, Ask, and
+Recommendation ID state.
 
 ## Ask tab — Questions team
 
 App adapter in `app/ask.py`:
 
 ```python
-def answer(question: str, *, golden_customer_id: str | None = None) -> dict:
+def answer(question: str, *, golden_customer_id: str | None = None,
+           scope_requested: bool = False) -> dict:
     """Return {answer, sql_or_sources, refused, mode, data_date, scope}."""
 ```
 

@@ -16,12 +16,11 @@ From the repository root, using the environment described in the dataset guide:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe src/c360/build.py
+.\.venv\Scripts\python.exe -m src.c360.build
 .\.venv\Scripts\python.exe -m src.features.training
-.\.venv\Scripts\python.exe -m src.features.candidates
 .\.venv\Scripts\python.exe -m src.features.candidates --base local_artifacts/features/open_promise_features.parquet --output local_artifacts/features/open_promise_candidates.parquet
 .\.venv\Scripts\python.exe -m src.decisioning.train
-.\.venv\Scripts\python.exe -m src.decisioning.restricted.fairness
+.\.venv\Scripts\python.exe -m src.decisioning.restricted.fairness_test_period
 .\.venv\Scripts\python.exe -m pytest tests/features tests/decisioning -q
 .\.venv\Scripts\python.exe -m src.decisioning.demo
 .\.venv\Scripts\python.exe -m src.decisioning.cli recommend G-39c6b287f70371cd9fc6
@@ -293,22 +292,7 @@ three calls yield, for example:
 {"disposition":"reject","original_action":"call","final_action":null,"reviewer":"demo-reviewer"}
 ```
 
-The restricted fairness report at `artifacts/fairness_evaluation.md` compares
-predicted risk and recommended action mix across gender and citizenship groups
-for a small linked sample. Protected fields are selected only in
-`restricted/fairness.py` for aggregate measurement and never enter the model,
-ranking or explanation paths.
-
-- Measured: predicted break risk and recommended action mix for 120 linked
-  customers, grouped by gender and citizenship.
-- Observed gaps: permanent residents averaged 0.613 risk versus 0.550 for
-  citizens and received 66.7% versus 46.3% specialist reviews; women and men
-  averaged 0.554 and 0.566 risk, with 54.0% and 40.7% specialist reviews.
-- Interpretation: this small selected sample is diagnostic. Policy/consent and
-  support routing affect actions; no causal disparity or parity conclusion is
-  warranted, and protected fields remain measurement-only.
-
-The expanded `artifacts/fairness_test_period.md` covers **all 52,283** linked,
+The restricted [fairness report](artifacts/fairness_test_period.md) covers **all 52,283** linked,
 quality-passed test-period promises and reports customer-clustered 95% intervals.
 It measures predicted break risk, actual break rate and the last **historical**
 outbound channel before each promise. It does not reconstruct historical
@@ -318,8 +302,10 @@ broken rates are 0.630 versus 0.610. Those differences are descriptive. The
 broken rate rose from 35.7% in pre-July training to 62.5% in this linked test
 cohort, a material drift that limits calibration and group comparisons.
 
-The supported presentation claims and pilot evidence requirements are listed
-in `docs/TASK_A_DECK_CLAIMS.md`.
+Protected fields are used only by `restricted/fairness_test_period.py` for
+aggregate measurement. They never enter model features, action ranking, or
+recommendation explanations. The [deck outline](../../docs/deck_outline.md)
+states the supported presentation claims and pilot boundary.
 
 ## Point-in-time text signals (offline rules)
 
@@ -365,16 +351,3 @@ The full Parquet training table remains ignored under `local_artifacts/`.
 
 Effective hardship-programme eligibility and a maintained regional holiday
 calendar are still needed for use beyond the frozen demo.
-
-## Integration and ownership
-
-Task A edits only `src/features/`, `src/decisioning/`, `tests/features/` and
-`tests/decisioning/`. Shared C360 contracts and Layer 1/2 source are read-only.
-Merge `origin/main` into `feature/task-a` regularly and check the adapter contract,
-real-data demo and regression tests before merging into `main`.
-
-Two existing Layer 2 transcript-summary tests fail on Windows because
-`strftime("%-d %b")` is unsupported. They were reproduced on unchanged
-`origin/main`, and Task A tests pass. Task A's thin flow was merged into main
-after the user accepted those known Layer 2 failures. Layer 1/2 source and
-shared contracts were not modified by Task A.

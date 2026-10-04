@@ -73,5 +73,5 @@ follows from these observations.
 Use a controlled pilot with fixed policy and model versions, explicit consent,
 authentication, monitoring, and outcome measurement to test whether agent
 decisions improve. The current demo is local, synthetic, and does not execute
-customer contact. Exact dependencies and 185 tests are committed; the
-fresh-clone check passed 183 tests before the latest two app tests were added.
+customer contact. Exact dependencies are pinned and 191 tests pass in the current
+checkout; the earlier fresh-clone result is documented separately.
