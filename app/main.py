@@ -107,11 +107,12 @@ def render_sidebar(user: dict) -> None:
 
 def render_top_navigation() -> None:
     """Keep every page reachable when Streamlit's sidebar is collapsed."""
-    st.caption("MENU")
-    for column, page in zip(st.columns(len(PAGES)), PAGES):
-        column.button(page, key=f"top_nav_{page}",
-                      type="primary" if st.session_state.page == page else "secondary",
-                      on_click=change_page, args=(page,), use_container_width=True)
+    with st.container(key="top_navigation"):
+        st.caption("MENU")
+        for column, page in zip(st.columns(len(PAGES)), PAGES):
+            column.button(page, key=f"top_nav_{page}",
+                          type="primary" if st.session_state.page == page else "secondary",
+                          on_click=change_page, args=(page,), use_container_width=True)
 
 
 def render_dashboard() -> None:

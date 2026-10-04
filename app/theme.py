@@ -31,6 +31,18 @@ h2 { font-size: 1.35rem !important; }
 .stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primary"] {
   background: #17263b; color: white; border: 1px solid #17263b; border-radius: 10px; }
 .stButton > button, .stFormSubmitButton > button { border-radius: 10px; font-weight: 650; }
+.st-key-top_navigation .stButton > button[kind="secondary"] {
+  background: #fff !important; border: 1px solid #d4deea !important; color: #172238 !important; }
+.st-key-top_navigation .stButton > button[kind="secondary"] p,
+.st-key-top_navigation .stButton > button[kind="secondary"] span { color: #172238 !important; }
+.st-key-top_navigation .stButton > button[kind="primary"] {
+  background: #175cd3 !important; border: 1px solid #175cd3 !important; color: #fff !important; }
+.st-key-top_navigation .stButton > button[kind="primary"] p,
+.st-key-top_navigation .stButton > button[kind="primary"] span { color: #fff !important; }
+.st-key-top_navigation .stButton > button[kind="secondary"]:hover {
+  background: #eaf2ff !important; border-color: #175cd3 !important; }
+.st-key-top_navigation .stButton > button[kind="primary"]:hover {
+  background: #1048a9 !important; border-color: #1048a9 !important; }
 .eyebrow { color:#54749b; font-size:.76rem; letter-spacing:.13em; font-weight:800; text-transform:uppercase; }
 .page-lede { color:#68788e; margin-top:-.6rem; margin-bottom:1.2rem; }
 .brand { color:#fff; font-size:1.25rem; font-weight:850; letter-spacing:-.035em; margin:.7rem 0 0; }
