@@ -203,7 +203,7 @@ class InsightEngine:
             if refusal:
                 card = AnswerCard("AD-HOC", question, refusal, "policy guardrail", True, "refusal")
             else:
-                card = self._answer_open_cases_after(question) or self._answer_with_llm(question)
+                card = self._answer_cases_after(question) or self._answer_with_llm(question)
             return replace(card, question_id=external_id) if external_id else card
         canonical = self._questions.get(qid, question)
         if qid in REFUSALS:
@@ -232,16 +232,17 @@ class InsightEngine:
             return True
         return False
 
-    def _answer_open_cases_after(self, question: str) -> AnswerCard | None:
-        match = re.fullmatch(r"\s*show open cases created after (\d{1,2}) (january|february|march|april|may|june|july|august|september|october|november|december) (\d{4})[?.!]?\s*", question, re.I)
+    def _answer_cases_after(self, question: str) -> AnswerCard | None:
+        match = re.fullmatch(r"\s*show (open|closed) cases created after (\d{1,2}) (january|february|march|april|may|june|july|august|september|october|november|december) (\d{4})[?.!]?\s*", question, re.I)
         if not match:
             return None
         try:
-            date = datetime.strptime(" ".join(match.groups()), "%d %B %Y").date().isoformat()
+            date = datetime.strptime(" ".join(match.groups()[1:]), "%d %B %Y").date().isoformat()
         except ValueError:
             return self._could_not_answer(question, "invalid date")
+        status = match.group(1).casefold()
         sql = ("SELECT case_id, case_open_date, case_status FROM collections_cases "
-               f"WHERE case_status = 'open' AND case_open_date > DATE '{date}' "
+               f"WHERE case_status = '{status}' AND case_open_date > DATE '{date}' "
                "ORDER BY case_open_date, case_id LIMIT 200")
         card = self._answer_sql("AD-HOC", question, sql)
         return replace(card, mode="empty", answer="No rows matched") if card.answer == "case_id,case_open_date,case_status" else card

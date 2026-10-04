@@ -132,14 +132,15 @@ def test_strict_router_rejects_changed_intent(
     assert (engine._match_question(candidate) == "Q") is should_match
 
 
-def test_open_cases_after_2030_is_global_filtered_and_empty(fixture_root: Path) -> None:
+@pytest.mark.parametrize("status", ["open", "closed"])
+def test_cases_after_2030_are_global_filtered_and_empty(fixture_root: Path, status: str) -> None:
     engine = bare_engine(fixture_root)
     engine.connection.execute("CREATE TABLE collections_cases(case_id VARCHAR, case_status VARCHAR, case_open_date DATE)")
     engine.connection.execute("INSERT INTO collections_cases VALUES ('CS-2026-1', 'open', DATE '2026-09-01')")
-    card = engine.answer("Show open cases created after 1 January 2030.")
+    card = engine.answer(f"Show {status} cases created after 1 January 2030.")
     assert card.answer == "No rows matched"
     assert card.scope == "global Collections"
-    assert "case_status = 'open'" in card.sql_or_sources
+    assert f"case_status = '{status}'" in card.sql_or_sources
     assert "2030-01-01" in card.sql_or_sources
     assert "C:/Users/" not in card.sql_or_sources
 

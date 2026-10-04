@@ -1,17 +1,17 @@
 # App integration interfaces
 
-All three tabs are connected in `app/main.py`. Each receives the selected `golden_customer_id` from the Customer input. Customer-level joins require published C360 links with `link_status = 'linked'`; fairness-test fields stay out of displayed answers and decision features.
+All three tabs are connected in `app/main.py`. Customer-level joins require published C360 links with `link_status = 'linked'`; fairness-test fields stay out of displayed answers and decision features. Ask defaults to global Collections; Recommendation uses the selected `golden_customer_id`.
 
 ## Ask tab — Questions team
 
 App adapter in `app/ask.py`:
 
 ```python
-def answer(question: str, *, golden_customer_id: str) -> dict:
-    """Return {answer, sql_or_sources, refused, mode, data_date}."""
+def answer(question: str, *, golden_customer_id: str | None = None) -> dict:
+    """Return {answer, sql_or_sources, refused, mode, data_date, scope}."""
 ```
 
-`src.insights.engine.InsightEngine(dataset_root).answer(question, question_id=None)` returns an `AnswerCard` with `answer`, `sql_or_sources`, `refused`, `mode`, `as_of_date`, and `metric_definition`. The app adapter verifies explicit case IDs against the selected customer's linked C360 cases. When Layer 2 adds `answer(question, *, scope: str | None = None)`, the adapter passes the selected golden ID in `scope`; it also accepts a `golden_customer_id` keyword for compatibility. Until either exists, customer-scoped analytical wording is refused with a connection message, while global metrics remain labelled global. Layer 2 owns the scoped query semantics and must enforce linked C360 filtering. The UI labels the scope, evidence, refusal, metric definition, and data date.
+`src.insights.engine.InsightEngine(dataset_root).answer(question, question_id=None, scope=None)` returns an `AnswerCard` with `answer`, `sql_or_sources`, `refused`, `mode`, `as_of_date`, `metric_definition`, and `scope`. The adapter sends a golden ID only when explicitly supplied, and verifies explicit case IDs against that customer's linked C360 cases. Customer-scoped wording without an ID is refused. The UI labels the actual scope, evidence, refusal, metric definition, and data date.
 
 ## Recommendation tab — Decisioning team
 
