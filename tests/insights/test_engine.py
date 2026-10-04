@@ -297,6 +297,13 @@ def test_scoped_routes_require_both_linked_collections_and_crm_keys(fixture_root
     con.execute(f"COPY links TO '{(tmp_path / 'identity_crosswalk.parquet').as_posix()}' (FORMAT PARQUET)")
     scope = "G-aaaaaaaaaaaaaaaaaaaa"
     assert "open_cases\n1" in engine.answer("How many open cases does this customer have?", scope=scope).answer
+    explicit = engine.answer(f"How many open cases are there for customer {scope}?", scope=scope)
+    assert explicit.answer == "open_cases\n1"
+    assert "identity_crosswalk" in explicit.sql_or_sources
+    assert "read_parquet" not in explicit.sql_or_sources
+    mismatch = engine.answer("How many open cases are there for customer G-bbbbbbbbbbbbbbbbbbbb?", scope=scope)
+    assert mismatch.refused
+    assert "does not match" in mismatch.answer
     assert "open_overdue_balance_cad\n100.0" in engine.answer("What is this customer's overdue balance?", scope=scope).answer
     assert "contact_count,outbound_calls\n1,1" in engine.answer("How many contacts did this customer have?", scope=scope).answer
     assert "broken_promises,total_promises\n1,1" in engine.answer("How many broken promises does this customer have?", scope=scope).answer

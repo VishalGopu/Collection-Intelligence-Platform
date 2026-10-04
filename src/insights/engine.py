@@ -255,6 +255,11 @@ class InsightEngine:
     def _answer_scoped(self, question: str, scope: str, question_id: str | None) -> AnswerCard:
         if not re.fullmatch(r"G-[0-9a-f]{20}", scope):
             raise ValueError("scope must be a published golden_customer_id")
+        mentioned_ids = {"G-" + value[2:].lower() for value in re.findall(r"\bG-[0-9a-f]{20}\b", question, re.I)}
+        if mentioned_ids and mentioned_ids != {scope}:
+            return AnswerCard(question_id or "AD-HOC", question,
+                              "The customer ID in the question does not match the selected scope.",
+                              "customer scope guardrail", True, "refusal")
         refusal = self._safety_refusal(question)
         if refusal:
             return AnswerCard(question_id or "AD-HOC", question, refusal, "policy guardrail", True, "refusal")
@@ -282,6 +287,7 @@ class InsightEngine:
         # must never disappear from the executed SQL.
         supported = (
             r"how many open cases does this customer have\??",
+            r"how many open cases are there for customer g-[0-9a-f]{20}\??",
             r"what is this customer's overdue balance\??",
             r"how many contacts did this customer have\??",
             r"how many broken promises does this customer have\??",

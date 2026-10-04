@@ -11,7 +11,7 @@ def answer(question: str, *, golden_customer_id: str | None = None) -> dict:
     """Return {answer, sql_or_sources, refused, mode, data_date, scope}."""
 ```
 
-`src.insights.engine.InsightEngine(dataset_root).answer(question, question_id=None, scope=None)` returns an `AnswerCard` with `answer`, `sql_or_sources`, `refused`, `mode`, `as_of_date`, `metric_definition`, and `scope`. The adapter sends a golden ID only when explicitly supplied, and verifies explicit case IDs against that customer's linked C360 cases. Customer-scoped wording without an ID is refused. The UI labels the actual scope, evidence, refusal, metric definition, and data date.
+`src.insights.engine.InsightEngine(dataset_root).answer(question, question_id=None, scope=None)` returns an `AnswerCard` with `answer`, `sql_or_sources`, `refused`, `mode`, `as_of_date`, `metric_definition`, and `scope`. The adapter sends a golden ID when explicitly supplied as an argument or written in the question, after C360 validation. It verifies explicit case IDs against that customer's linked C360 cases and refuses mismatched customer IDs. Customer-scoped wording without an ID is refused. The UI labels the actual scope, evidence, refusal, metric definition, and data date.
 
 ## Recommendation tab — Decisioning team
 

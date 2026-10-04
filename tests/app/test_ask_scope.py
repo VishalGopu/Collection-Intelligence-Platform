@@ -66,3 +66,33 @@ def test_global_question_ignores_selected_customer(monkeypatch) -> None:
     assert default == selected
     assert received == [None, GOLDEN_ID]
     assert default["scope"] == "global Collections"
+
+
+def test_explicit_golden_id_in_question_becomes_verified_scope(monkeypatch) -> None:
+    received = []
+
+    class ScopedEngine:
+        def __init__(self, root) -> None:
+            self.connection = _Connection()
+
+        def answer(self, question, *, scope=None):
+            received.append(scope)
+            return AnswerCard("AD-HOC", question, "open_cases\n1", "SELECT 1",
+                              scope=f"selected golden customer {scope}")
+
+    monkeypatch.setattr(ask, "InsightEngine", ScopedEngine)
+    monkeypatch.setattr(ask, "load_customer", lambda *args: CONTEXT)
+    question = f"how many open cases are there for customer {GOLDEN_ID}"
+    result = ask.answer(question)
+    assert received == [GOLDEN_ID]
+    assert result["answer"] == "open_cases\n1"
+    assert result["scope"] == "selected golden customer"
+
+
+def test_mismatched_golden_id_is_refused_before_query(monkeypatch) -> None:
+    monkeypatch.setattr(ask, "InsightEngine", lambda root: (_ for _ in ()).throw(
+        AssertionError("Do not query a mismatched customer")))
+    result = ask.answer("how many open cases are there for customer G-aaaaaaaaaaaaaaaaaaaa",
+                        golden_customer_id=GOLDEN_ID, customer_context=CONTEXT)
+    assert result["refused"]
+    assert "does not match" in result["answer"]

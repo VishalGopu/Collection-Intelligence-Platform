@@ -12,6 +12,7 @@ from src.insights.engine import InsightEngine, SNAPSHOT_DATE
 
 
 CASE_ID = re.compile(r"\bCS-\d{4}-\d+\b", re.IGNORECASE)
+GOLDEN_ID_IN_QUESTION = re.compile(r"\bG-[0-9a-f]{20}\b", re.IGNORECASE)
 CUSTOMER_SCOPE = re.compile(
     r"\b(this customer|selected customer|this person's|this person|their cases|"
     r"their promises|their contacts|for this golden|for customer G-[0-9a-f]+)\b",
@@ -40,6 +41,14 @@ def answer(
     question = question.strip()
     if not question:
         raise ValueError("Enter a question")
+    mentioned_ids = {"G-" + match[2:].lower() for match in GOLDEN_ID_IN_QUESTION.findall(question)}
+    if len(mentioned_ids) > 1:
+        return _refusal(question, "Ask about one golden customer at a time.")
+    if mentioned_ids:
+        mentioned_id = next(iter(mentioned_ids))
+        if golden_customer_id is not None and golden_customer_id != mentioned_id:
+            return _refusal(question, "The customer ID in the question does not match the selected scope.")
+        golden_customer_id = mentioned_id
     context = None
     if golden_customer_id is not None:
         context = customer_context or load_customer(golden_customer_id, dataset_root, c360_root)
