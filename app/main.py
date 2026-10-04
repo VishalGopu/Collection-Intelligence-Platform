@@ -105,6 +105,15 @@ def render_sidebar(user: dict) -> None:
             st.rerun()
 
 
+def render_top_navigation() -> None:
+    """Keep every page reachable when Streamlit's sidebar is collapsed."""
+    st.caption("MENU")
+    for column, page in zip(st.columns(len(PAGES)), PAGES):
+        column.button(page, key=f"top_nav_{page}",
+                      type="primary" if st.session_state.page == page else "secondary",
+                      on_click=change_page, args=(page,), use_container_width=True)
+
+
 def render_dashboard() -> None:
     user = st.session_state.auth_user
     page_header("Portfolio overview", f"Good day, {user['name']}",
@@ -492,6 +501,7 @@ if "golden_id" not in st.session_state:
 if "page" not in st.session_state:
     st.session_state.page = "Dashboard"
 render_sidebar(st.session_state.auth_user)
+render_top_navigation()
 
 page = st.session_state.page
 if page == "Dashboard":
