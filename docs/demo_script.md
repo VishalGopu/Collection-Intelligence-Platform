@@ -46,7 +46,7 @@ list.
 
 ## 4:20-5:00 — Second customer and limits
 
-Select `G-b1714eca2809e88d7587` in the Customer dropdown. Show that the
+Search `b1714eca2809e88d7587` in Browse all linked customers and click its row. Show that the
 identity and case views change. Close with the limits: historical channels were
 chosen by agents; the model's signal is modest; no uplift is proven. A pilot
 needs controlled comparison and outcome monitoring.

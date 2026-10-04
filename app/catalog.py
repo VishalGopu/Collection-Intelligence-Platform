@@ -9,7 +9,7 @@ import duckdb
 from app.customer import C360, _path
 
 
-PAGE_SIZE = 25
+PAGE_SIZE = 10
 
 
 def browse_customers(
