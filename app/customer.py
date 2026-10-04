@@ -45,11 +45,19 @@ def load_customer(
 
     con = duckdb.connect(":memory:")
     try:
+        con.execute("SET memory_limit='1GB'")
         con.execute(f"CREATE VIEW gold AS SELECT * FROM read_parquet({_path(c360 / 'golden_customers.parquet')})")
         con.execute(f"CREATE VIEW links AS SELECT * FROM read_parquet({_path(c360 / 'identity_crosswalk.parquet')})")
+        cache = c360 / "customer_page.duckdb"
+        use_cache = cache.is_file() and all(cache.stat().st_mtime >= path.stat().st_mtime
+                                            for path in required)
+        if use_cache:
+            con.execute(f"ATTACH {_path(cache)} AS customer_cache (READ_ONLY)")
         for name in ("card_accounts", "loan_accounts", "deposit_accounts",
                      "collections_cases", "contact_history", "promises_to_pay"):
-            con.execute(f"CREATE VIEW {name} AS SELECT * FROM read_csv({_path(data / (name + '.csv'))}, header=true, all_varchar=true)")
+            source = (f"customer_cache.{name}" if use_cache else
+                      f"read_csv({_path(data / (name + '.csv'))}, header=true, all_varchar=true)")
+            con.execute(f"CREATE VIEW {name} AS SELECT * FROM {source}")
 
         summary = _records(con, """SELECT golden_customer_id, as_of_date,
             len(crm_customer_ids) AS crm_record_count, min_match_confidence,

@@ -31,6 +31,7 @@ cd Collection-Intelligence-Platform
 py -3 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m src.c360.build
+.\.venv\Scripts\python.exe -m app.prepare_customer_data
 .\.venv\Scripts\python.exe -m pytest tests -q
 .\.venv\Scripts\python.exe -m app.smoke
 .\.venv\Scripts\python.exe -m src.features.training
@@ -48,6 +49,7 @@ cd Collection-Intelligence-Platform
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python -m src.c360.build
+.venv/bin/python -m app.prepare_customer_data
 .venv/bin/python -m pytest tests -q
 .venv/bin/python -m app.smoke
 .venv/bin/python -m src.features.training
@@ -62,6 +64,8 @@ Download the dataset before the build command; see the dataset guide for its exa
 For the official benchmark output, run `python -m src.insights.submission --questions questions.csv --output answers.csv` from the repository root (use the venv's Python on either OS). The output columns are exactly `question_id,answer,sql_or_sources,refused`. See [the uncached first-run ledger](docs/insights/step3_first_run_34.csv) and [fresh-clone verification](docs/fresh_clone_verification.md).
 
 The Customer page's featured dropdown has six quick examples. **Browse all linked customers** searches and pages through the full published C360 catalog (1,001,258 linked golden IDs in this release), 25 at a time, without loading all IDs into Streamlit. It can filter to customers with open cases; selecting a result updates the active golden ID.
+
+`app.prepare_customer_data` builds an optional, ignored DuckDB cache of only the Customer page's approved source columns, with lookup indexes. Build it once after the C360 output; the app uses it when current and falls back to the raw release otherwise. On this laptop, the hero's uncached customer load took 43.0 seconds and the indexed load took 1.57 seconds; the second customer's load fell from 48.0 to 0.85 seconds. The cache build took about 25 seconds and uses a 1 GB DuckDB memory limit.
 
 The [implemented architecture diagram](docs/architecture_built.png) shows the built components, AI use, and human review. [App interfaces](app/INTERFACES.md) and [hero-flow results](app/INTEGRATION_TEST.md) describe the current integration.
 
