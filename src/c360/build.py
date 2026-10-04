@@ -41,7 +41,7 @@ def main() -> None:
     data = args.data_dir.resolve()
     output = args.output_dir.resolve()
     if not (data / "data/customers.csv").is_file():
-        parser.error(f"Release not found at {data}; see docs/DATASET_DOWNLOAD.md")
+        parser.error(f"Release not found at {data}; extract the Maple release into maple_data/maple_collections_release")
     output.mkdir(parents=True, exist_ok=True)
 
     con = duckdb.connect(str(output / "work.duckdb"))

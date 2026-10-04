@@ -17,17 +17,13 @@ The Streamlit interface is a **CIBC-themed concept demo** based on the supplied 
 | `local_artifacts/` | Generated local files, ignored by Git |
 | `submission/` | Final artifacts to commit for judging |
 
-Use [the dataset guide](docs/DATASET_DOWNLOAD.md) to download the release locally. The dataset, virtual environment, text annotation cache, and generated Parquet files are not committed.
+Download the synthetic release from [the Maple dataset](https://huggingface.co/datasets/nuxsh/maple-collections-hackathon) and extract it under `maple_data/maple_collections_release/`. The dataset, virtual environment, text annotation cache, and generated Parquet files are not committed.
 
-For a container setup, follow the [Docker Compose guide](docs/DOCKER.md). It mounts the downloaded release and generated artifacts instead of copying them into the image; the app opens at `http://localhost:8504` by default.
-
-For a live presentation, follow the [read-aloud presenter script](docs/presenter_script.md) or the shorter [two-role collections manager walkthrough](docs/collections_manager_walkthrough.md). The [deck outline](docs/deck_outline.md), [architecture diagram](docs/architecture_built.png), [C360 contract](contracts/golden_c360_v1.json), and [benchmark evidence](docs/insights/gemini_released_35.md) cover the main review material. Module-specific implementation details live beside the code.
-
-The build-phase requirements are in `build_phase.pdf`; the proposed architecture is in `HACKERS_SystemDesign.pdf`.
+The submission artifacts are the [architecture diagram](submission/architecture_built.png), [C360 contract](contracts/golden_c360_v1.json), [data-quality report](submission/data_quality_report.md), and [benchmark answers](submission/benchmark_answers.csv).
 
 ## How to run
 
-For a fresh clone, work from the repository root and download the Maple release using [the dataset guide](docs/DATASET_DOWNLOAD.md). Extract it at `maple_data/maple_collections_release/`. The dataset and generated files are local and ignored by Git. Python 3.14 is the verified version.
+For a fresh clone, work from the repository root and extract the Maple release at `maple_data/maple_collections_release/`. The dataset and generated files are local and ignored by Git. Python 3.14 is the verified version.
 
 Windows PowerShell:
 
@@ -65,15 +61,15 @@ python3 -m venv .venv
 .venv/bin/python -m streamlit run app/main.py
 ```
 
-Download the dataset before the build command; see the dataset guide for its exact commands and access steps. Open the local URL printed by Streamlit. The local demo sign-in uses `manager / demo` or `agent / demo`; set `COLLECTIONS_DEMO_PASSWORD` in the ignored `.env` to replace the shared demo password. The manager opens on a portfolio dashboard; the specialist opens on the priority queue. The sidebar links to Customer 360, Ask Collections, and Decision review. Customer 360 starts with `G-39c6b287f70371cd9fc6`; browse the catalog or paste another published golden ID. Ask defaults to **All Collections**. Choose **This customer** only for a certified linked-customer route; unsupported scoped filters are refused. Every non-refused answer shows SQL or readable sources. The specialist can record approve/modify/reject reviews; the manager can inspect proposals but cannot submit a review through the UI. The smoke command writes a local test rejection to the ignored audit database. Stop the app with Ctrl+C.
+Download the dataset before the build command. Open the local URL printed by Streamlit. The local demo sign-in uses `manager / demo` or `agent / demo`; set `COLLECTIONS_DEMO_PASSWORD` in the ignored `.env` to replace the shared demo password. The manager opens on a portfolio dashboard; the specialist opens on the priority queue. The sidebar links to Customer 360, Ask Collections, and Decision review. Customer 360 starts with `G-39c6b287f70371cd9fc6`; browse the catalog or paste another published golden ID. Ask defaults to **All Collections**. Choose **This customer** only for a certified linked-customer route; unsupported scoped filters are refused. Every non-refused answer shows SQL or readable sources. The specialist can record approve/modify/reject reviews; the manager can inspect proposals but cannot submit a review through the UI. The smoke command writes a local test rejection to the ignored audit database. Stop the app with Ctrl+C.
 
-For the official benchmark output, run `python -m src.insights.submission --questions questions.csv --output answers.csv` from the repository root (use the venv's Python on either OS). The output columns are exactly `question_id,answer,sql_or_sources,refused`. See [the uncached first-run ledger](docs/insights/step3_first_run_34.csv) and [fresh-clone verification](docs/fresh_clone_verification.md).
+For the official benchmark output, run `python -m src.insights.submission --questions questions.csv --output answers.csv` from the repository root (use the venv's Python on either OS). The output columns are exactly `question_id,answer,sql_or_sources,refused`.
 
 **Browse all linked customers** searches and pages through the full published C360 catalog (1,001,258 linked golden IDs in this release), 10 at a time, without loading all IDs into Streamlit. The activity filter defaults to customers with both open cases and promises; switch it to open cases, any promise, broken promises, open promises, or all linked customers. The row shows open-case and linked promise counts. Click a row to make it the selected customer. Rebuild the local customer-page cache with `python -m app.prepare_customer_data` after updating the data or C360 crosswalk.
 
 `app.prepare_customer_data` builds an ignored DuckDB cache of only the Customer page's approved source columns, with lookup indexes. Build it once after the C360 output; the catalog browser requires it, while an individual customer lookup can fall back to the raw release. On this laptop, the hero's uncached customer load took 43.0 seconds and the indexed load took 1.57 seconds; the second customer's load fell from 48.0 to 0.85 seconds. The cache build took about 25 seconds and uses a 1 GB DuckDB memory limit.
 
-The [implemented architecture diagram](docs/architecture_built.png) shows the built components, AI use, and human review. [App interfaces](app/INTERFACES.md) describe the current integration; the [manager walkthrough](docs/collections_manager_walkthrough.md) gives the verified live flow.
+The [implemented architecture diagram](submission/architecture_built.png) shows the built components, AI use, and human review.
 
 ## What changed from the design
 
