@@ -67,13 +67,14 @@ def test_recorded_call_is_not_mistaken_for_contact_action() -> None:
 def test_policy_question_uses_document_not_sql(fixture_root: Path) -> None:
     source = fixture_root / "files" / "docs" / "policy" / "POL-COLL-007_v2.0_EN.md"
     source.parent.mkdir(parents=True)
-    source.write_text("Record it the same day and escalate to a team lead.", encoding="utf-8")
+    source.write_text("## §8.1 Recording a complaint\nAny expression of dissatisfaction is a complaint. Record it the same day and escalate to the duty lead.", encoding="utf-8")
     card = bare_engine(fixture_root).answer(
         "A customer complains about how often we call. When must the complaint be recorded and who is it escalated to?"
     )
     assert not card.refused
     assert card.mode == "document"
     assert "same day" in card.answer
+    assert "duty lead" in card.answer
     assert "POL-COLL-007" in card.sql_or_sources
 
 
@@ -104,16 +105,71 @@ def test_gemini_rate_limit_falls_back_to_groq(fixture_root: Path, monkeypatch: p
     assert "open_cases\n1" in card.answer
 
 
-def test_insolvency_hold_counts_unresolved_hold_status(fixture_root: Path) -> None:
+def test_catalog_exposes_observed_case_status_and_hold_relationship(fixture_root: Path) -> None:
     engine = bare_engine(fixture_root)
     engine.connection.execute(
         "CREATE TABLE collections_cases (case_status VARCHAR, insolvency_hold_flag BOOLEAN, total_overdue DOUBLE)"
     )
     engine.connection.execute("INSERT INTO collections_cases VALUES ('insolvency_hold', true, 125), ('open', false, 75)")
-    card = engine.answer("How many open cases are on insolvency hold, and how much is overdue on them?")
+    catalog = engine._catalog_text()
+    assert "OBSERVED CASE STATUS" in catalog
+    assert "('insolvency_hold', True, 1)" in catalog
+    sql = ("SELECT count(*) FROM collections_cases WHERE case_status='open' "
+           "AND insolvency_hold_flag=true")
+    repaired = engine._reconcile_status_filter(sql)
+    assert "case_status = 'insolvency_hold'" in repaired
+    assert engine._reconcile_status_filter("SELECT count(*) FROM collections_cases WHERE case_status='open'") == (
+        "SELECT count(*) FROM collections_cases WHERE case_status='open'"
+    )
+
+
+def test_explicit_sms_payment_link_population_cannot_be_dropped() -> None:
+    question = "What share of payment links sent by SMS were clicked?"
+    with pytest.raises(ValueError, match="payment-link population"):
+        InsightEngine._validate_explicit_entities(
+            question, "SELECT avg(link_clicked_flag) FROM contact_history WHERE channel='sms'"
+        )
+    with pytest.raises(ValueError, match="SMS channel"):
+        InsightEngine._validate_explicit_entities(
+            question, "SELECT avg(link_clicked_flag) FROM contact_history WHERE payment_link_id IS NOT NULL"
+        )
+    InsightEngine._validate_explicit_entities(
+        question, "SELECT avg(link_clicked_flag) FROM contact_history "
+                  "WHERE payment_link_id IS NOT NULL AND channel='sms'"
+    )
+
+
+def test_semantic_retry_runs_after_provider_fallback(fixture_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    engine = bare_engine(fixture_root)
+    engine.connection.execute(
+        "CREATE TABLE contact_history (payment_link_id VARCHAR, link_clicked_flag BOOLEAN, channel VARCHAR)"
+    )
+    engine.connection.execute("INSERT INTO contact_history VALUES ('L1', true, 'sms')")
+    engine._catalog = "contact_history(payment_link_id, link_clicked_flag, channel)"
+
+    class LimitedGemini:
+        provider = "gemini"
+
+        def plan(self, question: str, catalog: str) -> SQLPlan:
+            raise PlannerError("HTTP 429")
+
+    class RetriedGroq:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def plan(self, question: str, catalog: str) -> SQLPlan:
+            if "Required source constraints" in question:
+                return SQLPlan("SELECT avg(link_clicked_flag::INT) AS click_share FROM contact_history "
+                               "WHERE payment_link_id IS NOT NULL AND channel='sms'")
+            return SQLPlan("SELECT avg(link_clicked_flag::INT) AS click_share FROM contact_history")
+
+    engine.llm_planner = LimitedGemini()
+    monkeypatch.setenv("GROQ_API_KEY", "test-only")
+    monkeypatch.setattr("src.insights.engine.OpenAIResponsesPlanner", RetriedGroq)
+    card = engine._answer_with_llm("What share of payment links sent by SMS were clicked?")
     assert not card.refused
-    assert "1,125.0" in card.answer
-    assert "case_status = 'insolvency_hold'" in card.sql_or_sources
+    assert "payment_link_id" in card.sql_or_sources
+    assert "channel = 'sms'" in card.sql_or_sources
 
 
 def test_sql_validator_allows_select_and_blocks_mutation() -> None:

@@ -219,7 +219,6 @@ class InsightEngine:
             else:
                 card = (self._answer_ad_hoc_document(question) or
                         self._answer_ad_hoc_transcript(question) or
-                        self._answer_insolvency_hold(question) or
                         self._answer_open_cases_by_team(question) or
                         self._answer_open_case_top(question) or
                         self._answer_cases_after(question) or self._answer_with_llm(question))
@@ -418,49 +417,61 @@ class InsightEngine:
         return None
 
     def _answer_ad_hoc_document(self, question: str) -> AnswerCard | None:
-        """Use governed policy text for supported policy intents, never SQL over case data."""
+        """Retrieve passages from the newest English policy/procedure documents."""
         text = question.casefold()
-        routes = (
-            (r"income evidence|evidence of income", "POL-COLL-004_v4.2_EN.md", "POL-COLL-004 §4.3",
-             "Income evidence is not required for programmes of 3 months or less. Term extensions and debt management plans require evidence of income and expenses."),
-            (r"fraudulent|fraud claims?", "PRC-COLL-012_v1.4_EN.md", "PRC-COLL-012 §6.1",
-             "Open a dispute, pause payment requests for the disputed amount until it is resolved, and transfer fraud claims to the fraud team."),
-            (r"complain.*(?:record|escalat)|(?:record|escalat).*complain", "POL-COLL-007_v2.0_EN.md", "POL-COLL-007 §8.1",
-             "Record any expression of dissatisfaction as a complaint the same day and escalate it to a team lead."),
-            (r"(?:hours|sundays?).*(?:call|contact)|(?:call|contact).*(?:hours|sundays?)", "POL-COLL-001_v3.0_EN.md", "POL-COLL-001 §5.1",
-             "Calls and texts are permitted from 07:00 to 21:00 in the customer's local time. Where Sunday contact is permitted, Sunday calls are limited to 13:00–17:00 local time. No collection contact is made on statutory holidays."),
-        )
-        for pattern, filename, source, answer in routes:
-            if not re.search(pattern, text):
-                continue
-            matching = list((self.root / "files" / "docs").rglob(filename))
-            if not matching or not matching[0].is_file():
-                return self._could_not_answer(question, f"policy source {source} is unavailable")
-            return AnswerCard("AD-HOC", question, answer, json.dumps([source]), mode="document")
-        return None
+        if not re.search(r"\b(?:should|must|may|allowed|permitted|policy|rule|require|need|when|hours)\b", text):
+            return None
+        if re.search(r"\b(?:how many|how much|what share|rate|average|total amount)\b", text):
+            return None
+        synonyms = {"fraudulent": "fraud", "complaint": "complain", "complaints": "complain",
+                    "recorded": "record", "escalated": "escalate", "sundays": "sunday",
+                    "charges": "transaction", "programmes": "programme", "required": "require"}
+        stop = {"customer", "customers", "collection", "collections", "what", "when", "where",
+                "should", "would", "could", "there", "about", "their", "have", "does",
+                "before", "after", "agent", "need", "must", "with", "them", "they", "were",
+                "during", "make", "call", "calls", "contact", "how", "often", "who", "the",
+                "and", "for", "this", "that", "applies", "may", "are", "our"}
+
+        def terms(value: str) -> set[str]:
+            words = re.findall(r"[a-z]+|\d+", value.casefold())
+            return {synonyms.get(word, word[:-1] if word.endswith("s") and len(word) > 4 else word)
+                    for word in words if len(word) > 2 and word not in stop}
+
+        query_terms = terms(question)
+        documents = self.root / "files" / "docs"
+        latest: dict[str, tuple[tuple[int, ...], Path]] = {}
+        for folder in ("policy", "procedure", "faq", "regulatory"):
+            for path in (documents / folder).glob("*_EN.md"):
+                match = re.match(r"(.+)_v(\d+(?:\.\d+)*)_EN\.md$", path.name)
+                if not match:
+                    continue
+                version = tuple(map(int, match.group(2).split(".")))
+                if match.group(1) not in latest or version > latest[match.group(1)][0]:
+                    latest[match.group(1)] = (version, path)
+        ranked: list[tuple[int, str, str]] = []
+        for _, path in latest.values():
+            content = path.read_text(encoding="utf-8")
+            for section in re.split(r"(?=^##\s+)", content, flags=re.M):
+                if not section.startswith("## "):
+                    continue
+                heading, _, body = section.partition("\n")
+                overlap = query_terms & terms(section)
+                score = len(overlap) + 2 * len(query_terms & terms(heading))
+                if score >= 2:
+                    source = f"{path.stem.split('_v')[0]} {heading[3:].strip()}"
+                    ranked.append((score, source, body.strip()))
+        ranked.sort(key=lambda item: item[0], reverse=True)
+        if not ranked or ranked[0][0] < 2:
+            return None
+        selected = ranked[:2]
+        answer = "\n\n".join(f"{source}: {body[:900]}" for _, source, body in selected)
+        return AnswerCard("AD-HOC", question, answer,
+                          json.dumps([source for _, source, _ in selected]), mode="document")
 
     def _answer_ad_hoc_transcript(self, question: str) -> AnswerCard | None:
         if re.search(r"\b(?:summari[sz]e|summary)\b.*\b(?:recorded|recent)\s+call\b.*\bCS-\d{4}-\d+\b", question, re.I):
             return self._answer_transcript("AD-HOC", question)
         return None
-
-    def _answer_insolvency_hold(self, question: str) -> AnswerCard | None:
-        if not re.fullmatch(
-            r"how many (?:open )?cases are on insolvency hold,? and how much is overdue on them[?.!]?",
-            question.strip(), re.I,
-        ):
-            return None
-        sql = (
-            "SELECT count(*) AS cases_on_insolvency_hold, "
-            "round(coalesce(sum(total_overdue), 0), 2) AS overdue_cad "
-            "FROM collections_cases WHERE case_status = 'insolvency_hold' "
-            "AND insolvency_hold_flag = true"
-        )
-        card = self._answer_sql("AD-HOC", question, sql)
-        return replace(card, metric_definition=(
-            "An insolvency hold is an unresolved case with case_status='insolvency_hold'; "
-            "it is not labelled case_status='open' in the source data."
-        ))
 
     def _answer_sql(self, qid: str, question: str, sql: str) -> AnswerCard:
         self._validate_sql(sql)
@@ -479,21 +490,39 @@ class InsightEngine:
         if self.llm_planner is None:
             return self._could_not_answer(question, "no LLM planner is configured")
         try:
-            catalog = getattr(self, "_catalog", None) or self._catalog_text()
-            try:
-                plan = self.llm_planner.plan(question, catalog)
-            except PlannerError as exc:
-                groq_key = (os.environ.get("GROQ_API_KEY") or os.environ.get("grok_api_key") or "").lstrip("=").strip()
-                if (getattr(self.llm_planner, "provider", None) != "gemini" or
-                        not groq_key or not re.search(r"HTTP (?:429|503)\b", str(exc))):
-                    raise
+            catalog = (getattr(self, "_catalog", None) or self._catalog_text())
+            catalog += self._relevant_column_meanings(question)
+            groq_key = (os.environ.get("GROQ_API_KEY") or os.environ.get("grok_api_key") or "").lstrip("=").strip()
+
+            def groq_plan(planning_question: str = question):
                 fallback = OpenAIResponsesPlanner(
                     api_key=groq_key, model=os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b"),
                     fallback_model=os.environ.get("GROQ_FALLBACK_MODEL", "openai/gpt-oss-20b"),
                     provider="groq",
                 )
-                plan = fallback.plan(question, catalog)
-            sql = self._validate_llm_sql(self._normalize_contact_hour_sql(question, plan.sql))
+                return fallback.plan(planning_question, catalog)
+
+            try:
+                plan = self.llm_planner.plan(question, catalog)
+            except PlannerError as exc:
+                if (getattr(self.llm_planner, "provider", None) != "gemini" or
+                        not groq_key or not re.search(r"HTTP (?:429|503)\b", str(exc))):
+                    raise
+                plan = groq_plan()
+            repaired = self._reconcile_status_filter(plan.sql)
+            sql = self._validate_llm_sql(self._normalize_contact_hour_sql(question, repaired))
+            try:
+                self._validate_explicit_entities(question, sql)
+            except ValueError as semantic_error:
+                if not groq_key:
+                    raise
+                retry_question = (question + "\nThe previous SQL was rejected: " + str(semantic_error) +
+                                  ". Preserve every explicitly named population, channel, and outcome. "
+                                  + self._entity_guidance(question))
+                plan = groq_plan(retry_question)
+                repaired = self._reconcile_status_filter(plan.sql)
+                sql = self._validate_llm_sql(self._normalize_contact_hour_sql(question, repaired))
+                self._validate_explicit_entities(question, sql)
             if plan.metric_id:
                 metric = self._metrics.get(plan.metric_id)
                 if not metric or metric.get("certified_flag") != "true":
@@ -503,7 +532,19 @@ class InsightEngine:
                 if sources and not sources.intersection(query_tables):
                     raise ValueError(f"planner used the wrong tables for metric {plan.metric_id}")
             query_started = time.monotonic()
-            cursor = self.connection.execute(sql)
+            try:
+                cursor = self.connection.execute(sql)
+            except duckdb.BinderException as exc:
+                if getattr(self.llm_planner, "provider", None) not in {"gemini", "groq"} or not groq_key:
+                    raise
+                retry_question = (question + "\nThe previous SQL failed against the real schema: " +
+                                  re.sub(r"\s+", " ", str(exc))[:240] +
+                                  ". Use only columns listed in the catalog.")
+                plan = groq_plan(retry_question)
+                repaired = self._reconcile_status_filter(plan.sql)
+                sql = self._validate_llm_sql(self._normalize_contact_hour_sql(question, repaired))
+                self._validate_explicit_entities(question, sql)
+                cursor = self.connection.execute(sql)
             columns = [item[0] for item in cursor.description]
             rows = cursor.fetchall()
             self.query_seconds = getattr(self, "query_seconds", 0.0) + time.monotonic() - query_started
@@ -537,11 +578,90 @@ class InsightEngine:
         for table in sorted(KNOWN_TABLES & available):
             columns = [row[1] for row in self.connection.execute(f"PRAGMA table_info('{table}')").fetchall()]
             table_lines.append(f"{table}({', '.join(columns)})")
+        if ("collections_cases" in available and
+                {"case_status", "insolvency_hold_flag"} <= {
+                    row[1] for row in self.connection.execute("PRAGMA table_info('collections_cases')").fetchall()
+                }):
+            statuses = self.connection.execute(
+                "SELECT case_status, insolvency_hold_flag, count(*) AS cases "
+                "FROM collections_cases GROUP BY 1, 2 ORDER BY 1, 2"
+            ).fetchall()
+            table_lines.append(f"OBSERVED CASE STATUS / INSOLVENCY FLAG COUNTS: {statuses}")
         metric_lines = [
             f"{metric_id}: {row['business_definition']} Formula: {row['formula']}"
             for metric_id, row in sorted(self._metrics.items()) if row.get("certified_flag") == "true"
         ]
         return "TABLES\n" + "\n".join(table_lines) + "\nCERTIFIED METRICS\n" + "\n".join(metric_lines)
+
+    def _relevant_column_meanings(self, question: str) -> str:
+        """Add the release's own descriptions for columns relevant to this question."""
+        schema_path = self.root / "schema" / "schema.json"
+        if not schema_path.is_file():
+            return ""
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        query_words = set(re.findall(r"[a-z]{3,}", question.casefold()))
+        ranked = []
+        for table in KNOWN_TABLES:
+            for column in schema.get(table, {}).get("columns", []):
+                description = column.get("description") or ""
+                name = column.get("name") or ""
+                words = set(re.findall(r"[a-z]{3,}", f"{name} {description}".casefold()))
+                overlap = len(query_words & words)
+                if overlap:
+                    ranked.append((overlap, table, name, description))
+        ranked.sort(key=lambda row: (-row[0], row[1], row[2]))
+        if not ranked:
+            return ""
+        return "\nRELEVANT COLUMN MEANINGS FROM RELEASE SCHEMA\n" + "\n".join(
+            f"{table}.{name}: {description}" for _, table, name, description in ranked[:16]
+        )
+
+    @staticmethod
+    def _validate_explicit_entities(question: str, sql: str) -> None:
+        """Reject plans that silently omit named channel or event populations."""
+        text = question.casefold()
+        lowered = sql.casefold()
+        if re.search(r"\bpayment links?\b", text) and "payment_link_id" not in lowered:
+            raise ValueError("SQL omitted payment_link_id for the payment-link population")
+        if re.search(r"\bclick(?:ed|s)?\b", text) and "payment link" in text and "link_clicked_flag" not in lowered:
+            raise ValueError("SQL omitted the link-click outcome")
+        if re.search(r"\bsms\b", text) and not re.search(
+            r"\b(?:channel|channel_v2)\b[^\n]{0,70}=\s*'sms'", lowered
+        ):
+            raise ValueError("SQL omitted the requested SMS channel")
+
+    @staticmethod
+    def _entity_guidance(question: str) -> str:
+        text = question.casefold()
+        constraints = []
+        if re.search(r"\bpayment links?\b", text):
+            constraints.append("payment-link population: payment_link_id IS NOT NULL")
+        if re.search(r"\bclick(?:ed|s)?\b", text):
+            constraints.append("click outcome: link_clicked_flag")
+        if re.search(r"\bsms\b", text):
+            constraints.append("SMS channel: coalesce(channel_v2, channel)='sms'")
+        return " Required source constraints: " + "; ".join(constraints)
+
+    def _reconcile_status_filter(self, sql: str) -> str:
+        """Repair an impossible status/hold-flag pair using observed source values."""
+        status = re.search(r"\bcase_status\s*=\s*'open'", sql, re.I)
+        flag = re.search(r"\b([a-z_]+_hold_flag)\s*=\s*(?:true|1)\b", sql, re.I)
+        if not status or not flag:
+            return sql
+        column = flag.group(1).lower()
+        columns = {row[1].lower() for row in self.connection.execute(
+            "PRAGMA table_info('collections_cases')"
+        ).fetchall()}
+        if column not in columns:
+            return sql
+        observed = self.connection.execute(
+            f"SELECT DISTINCT case_status FROM collections_cases WHERE {column}=true"
+        ).fetchall()
+        if len(observed) == 1 and observed[0][0] != "open":
+            safe_status = str(observed[0][0]).replace("'", "''")
+            replacement = f"case_status = '{safe_status}'"
+            return sql[:status.start()] + replacement + sql[status.end():]
+        return sql
 
     @staticmethod
     def _normalize_contact_hour_sql(question: str, sql: str) -> str:
