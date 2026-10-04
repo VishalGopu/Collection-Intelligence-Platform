@@ -215,6 +215,8 @@ class RecommendationEngine:
                 'ptp_id': row.ptp_id, 'customer_id': row.golden_customer_id,
                 'crm_customer_id': row.crm_customer_id, 'case_id': row.case_id,
                 'promise_created_ts': row.promise_created_ts.isoformat(),
+                'dpd_at_creation': values['dpd_at_creation'],
+                'overdue_at_creation': values['overdue_at_creation'],
                 'probability_break': round(1 - scored['probability'], 6),
                 'shap_reasons': scored['shap_reasons'],
                 'top_reason': scored['shap_reasons'][0]['label'],

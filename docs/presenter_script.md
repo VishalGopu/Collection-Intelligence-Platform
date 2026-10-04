@@ -44,7 +44,7 @@ Example customer: **`G-883e676faa7837d10aa7`**. This is a useful example because
 
 **Do:** Open **Priority queue**, read the **How prioritisation works** card, and click **Refresh priority queue**. Point to the first row for `G-883e676faa7837d10aa7`, promise `PTP-3511285`, case `CS-2026-123687`.
 
-**Say:** “This queue contains **linked open promises**, sorted by the model’s estimated chance of breaking the promise. This promise has **85.2% estimated break risk** and appears first in the top 20. **Main risk driver** says ‘days past due’. That means the model associates the customer’s arrears age with a lower chance of keeping the promise. The score is a review priority, **not** a contact instruction or a prediction that this specific person will definitely miss payment.”
+**Say:** “This queue contains **linked open promises**, sorted by the model’s estimated chance of breaking the promise. This promise has **85.2% estimated break risk** and appears first in the top 20. At the time of the promise, the case had **127 days past due** and **CAD 738.68 overdue**; those values are now visible in the queue. **Main risk driver** says ‘days past due’. The score is a review priority, **not** a contact instruction or a prediction that this specific person will definitely miss payment.”
 
 **Do:** Click the first row. It opens the customer in **Customer 360**. If selecting the row does not respond in your browser, open Customer 360 from the top menu and paste `G-883e676faa7837d10aa7` into **Golden customer ID**.
 
@@ -64,7 +64,7 @@ Example customer: **`G-883e676faa7837d10aa7`**. This is a useful example because
 
 **Do:** Point to **Customer snapshot** and explicitly clarify the apparent mismatch.
 
-**Say:** “**CRM records: 1** means one CRM record anchors this golden customer. **Open cases: 0**, **Highest DPD: 0**, and **Overdue: CAD 0** here are the *open-case summary*. The case below is marked **legal**, so it is excluded from those open-case cards. This is why we should inspect the detailed rows before drawing a conclusion. **Hardship review flag: no** is a structured routing flag, not a model feature.”
+**Say:** “**CRM records: 1** means one CRM record anchors this golden customer. **Open cases: 0**, **Highest DPD (open cases): 0**, and **Overdue (open cases): CAD 0** are the *open-case summary*. The case below is marked **legal**, so it is excluded from those cards. The page now calls out this distinction above the tabs. **Hardship review flag: no** is a structured routing flag, not a model feature.”
 
 **Do:** Open the four tabs one by one.
 

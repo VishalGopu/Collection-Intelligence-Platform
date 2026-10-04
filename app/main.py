@@ -357,11 +357,16 @@ def render_customer() -> None:
     a, b, c, d = st.columns(4)
     a.metric("CRM records", summary["crm_record_count"])
     b.metric("Open cases", summary["open_case_count"])
-    c.metric("Highest DPD", summary["max_current_dpd"] or 0)
-    d.metric("Overdue · CAD", f"${summary['total_overdue_cad']:,.2f}")
+    c.metric("Highest DPD (open cases)", summary["max_current_dpd"] or 0)
+    d.metric("Overdue (open cases) · CAD", f"${summary['total_overdue_cad']:,.2f}")
     st.caption(f"Data quality: {summary['dq_status']} · Minimum link confidence: "
                f"{summary['min_match_confidence']:.2f} · Hardship review flag: "
                f"{'yes' if summary['hardship_flag'] else 'no'}")
+    non_open_cases = sorted({case["case_status"] for case in customer["cases"]
+                             if case["case_status"] != "open"})
+    if non_open_cases:
+        st.info("These snapshot totals include only cases with status 'open'. This customer also "
+                f"has case status {', '.join(non_open_cases)}; see the Cases tab for its DPD and overdue amount.")
     cases, promises, contacts, accounts = st.tabs(["Cases", "Promises", "Contacts", "Accounts"])
     with cases:
         st.dataframe(customer["cases"], width="stretch", hide_index=True)
@@ -584,7 +589,8 @@ def render_worklist() -> None:
     with st.container(border=True):
         st.markdown("**How prioritisation works**")
         st.caption("Open Promise-to-Pay records are ranked by estimated break risk using only "
-                   "information available before each promise was made. Higher-risk cases appear "
+                   "information available before each promise was made. An open promise can belong "
+                   "to a case whose current status is legal or another non-open status. Higher-risk cases appear "
                    "first for human review; the score does not automatically trigger customer action.")
     if st.button("Refresh priority queue", key="worklist_submit", type="primary"):
         try:
@@ -607,6 +613,8 @@ def render_worklist() -> None:
         st.dataframe([{"Promise ID": row["ptp_id"],
                        "Golden customer ID": row["customer_id"],
                        "Case ID": row["case_id"],
+                       "DPD when promised": row["dpd_at_creation"],
+                       "Overdue when promised (CAD)": row["overdue_at_creation"],
                        "Estimated break risk": f"{row['probability_break']:.1%}",
                        "Main risk driver": row["top_reason"]} for row in rows],
                      width="stretch", hide_index=True, key="worklist_table",

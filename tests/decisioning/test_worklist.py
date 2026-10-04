@@ -20,6 +20,11 @@ def test_open_worklist_is_sorted_and_has_actual_shap_reasons():
                    datetime(2026, 9, 28, 16) for row in rows)
         assert all(len(row['shap_reasons']) == 3 for row in rows)
         assert all(row['top_reason'] == row['shap_reasons'][0]['label'] for row in rows)
+        assert all(row['dpd_at_creation'] is not None and
+                   row['overdue_at_creation'] is not None for row in rows)
+        assert rows[0]['customer_id'] == 'G-883e676faa7837d10aa7'
+        assert rows[0]['dpd_at_creation'] == 127.0
+        assert rows[0]['overdue_at_creation'] == 738.68
         assert [row['probability_break'] for row in rows] == sorted(
             [row['probability_break'] for row in rows], reverse=True)
         assert engine.worklist(3) == rows
