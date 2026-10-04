@@ -203,7 +203,8 @@ class InsightEngine:
             if refusal:
                 card = AnswerCard("AD-HOC", question, refusal, "policy guardrail", True, "refusal")
             else:
-                card = (self._answer_open_case_top(question) or
+                card = (self._answer_open_cases_by_team(question) or
+                        self._answer_open_case_top(question) or
                         self._answer_cases_after(question) or self._answer_with_llm(question))
             return replace(card, question_id=external_id) if external_id else card
         canonical = self._questions.get(qid, question)
@@ -282,6 +283,17 @@ class InsightEngine:
             "Open cases have case_status='open'. Top means highest current days past due, "
             "then highest overdue amount; case ID only breaks ties and is not displayed."
         ))
+
+    def _answer_open_cases_by_team(self, question: str) -> AnswerCard | None:
+        normalized = re.sub(r"\s+", " ", question.strip()).casefold()
+        if not re.fullmatch(
+            r"(?:how many cases are open by assigned team|how many open cases are assigned to each team)[?.!]?",
+            normalized,
+        ):
+            return None
+        sql = ("SELECT assigned_team, count(*) AS open_cases FROM collections_cases "
+               "WHERE case_status = 'open' GROUP BY assigned_team ORDER BY assigned_team")
+        return self._answer_sql("AD-HOC", question, sql)
 
     def _answer_scoped(self, question: str, scope: str, question_id: str | None) -> AnswerCard:
         if not re.fullmatch(r"G-[0-9a-f]{20}", scope):
