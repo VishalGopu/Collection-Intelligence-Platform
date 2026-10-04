@@ -159,6 +159,9 @@ with recommendation_tab:
                        f"Status: {proposal['status']}")
             for reason_text in proposal.get("reasons", []):
                 st.write(reason_text)
+            if proposal.get("text_evidence"):
+                st.markdown("**Text evidence**")
+                st.caption(proposal["text_evidence"])
             probability = proposal.get("probabilities", {}).get("promise_kept")
             if probability is not None:
                 st.metric("Promise kept probability", f"{probability:.1%}")

@@ -1,6 +1,6 @@
 """Shared point-in-time text feature definition for training and live scoring.
 
-Text annotations are precomputed into a separate cache. A missing annotation is
+Rule annotations are precomputed into a separate cache. A missing annotation is
 unknown, never evidence of no hardship. These context fields are not inputs to
 the repayment model or action ranker and cannot alone authorize adverse action.
 """
@@ -10,12 +10,55 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 import json
+import re
+import unicodedata
 
 
 DELAY_REASONS = frozenset({'reduced_income', 'payroll_timing', 'forgot', 'bank_error',
                            'travel', 'dispute', 'refuses', 'other'})
 HARDSHIP_VALUES = frozenset({'none', 'possible', 'clear'})
-SCHEMA_VERSION = 'task-a-text-v1'
+SCHEMA_VERSION = 'text-rules-v1'
+
+
+def extract_rules(text: str) -> dict:
+    """Conservative, inspectable signals from customer-authored text only."""
+    plain = unicodedata.normalize('NFKD', text.casefold())
+    plain = ''.join(char for char in plain if not unicodedata.combining(char))
+    plain = re.sub(r'\s+', ' ', plain)
+    clear = (
+        r'\b(?:lost (?:my |the )?job|laid off|position eliminated|unemployed|'
+        r'hours (?:at work )?(?:were )?reduced|shifts? (?:at work )?(?:were )?cut|'
+        r'pay (?:got |was )?cut|income (?:dropped|reduced)|off work sick|'
+        r'medical leave|can.t pay (?:the whole|that right now)|'
+        r'not able to pay that right now|asked (?:if|about) (?:pmt|payment|hardship)|'
+        r'asked if pmt can be reduced)\b'
+    )
+    possible = (
+        r'\b(?:money is tight|budget (?:very |has been really )?tight|'
+        r'budget very tight|things are hard|struggling (?:a bit|financially)|'
+        r'financial(?:ly)? difficult|c.est serre|difficile financierement|'
+        r'can.t afford|cannot afford|hardship options)\b'
+    )
+    hardship = ('clear' if re.search(clear, plain) else
+                'possible' if re.search(possible, plain) else 'none')
+    reason_rules = (
+        ('dispute', r'\b(?:disput(?:e|es|ed)|charge(?:s)? aren.t mine|statement is wrong|'
+         r'payment (?:was )?not applied|late fee|fraud|litige|releve.*errone)\b'),
+        ('bank_error', r'\b(?:bank (?:transfer )?(?:error|problem)|problem with my bank transfer|'
+         r'probleme bancaire|technical (?:issue|error)|transfer failed)\b'),
+        ('travel', r'\b(?:travell?(?:ed|ing)?|away on (?:a )?trip|voyage)\b'),
+        ('forgot', r'\b(?:forgot|forgotten|missed (?:the )?due date|oublie)\b'),
+        ('reduced_income', r'\b(?:lost (?:my |the )?job|laid off|position eliminated|'
+         r'unemployed|hours (?:at work )?(?:were )?reduced|shifts? (?:at work )?(?:were )?cut|'
+         r'pay (?:got |was )?cut|income (?:dropped|reduced)|reduced hours)\b'),
+        ('payroll_timing', r'\b(?:payday|pay day|next pay|after (?:my |the )?pay|'
+         r'payroll|salary|paie|paiera apres)\b'),
+        ('refuses', r'\b(?:refus(?:e|es|ed) to pay|not paying that|won.t pay)\b'),
+        ('other', r'\b(?:sort it out|will try to pay|try to pay|can pay|i can pay|'
+         r'je vais regler)\b'),
+    )
+    delay = next((reason for reason, pattern in reason_rules if re.search(pattern, plain)), None)
+    return {'hardship_signal': hardship, 'stated_delay_reason': delay}
 
 
 def normalize_annotation(annotation: dict) -> dict:

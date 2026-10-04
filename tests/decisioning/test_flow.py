@@ -55,6 +55,19 @@ def test_forbidden_action_blocked_even_with_high_score(context):
                                     {'action': 'wait', 'score': 0}]) == [{'action': 'wait', 'score': 0}]
 
 
+def test_text_signal_is_evidence_only_and_does_not_change_action(engine):
+    baseline = engine.recommend('G-0001')
+    engine.adapter.text_features = lambda context: {
+        'hardship_signal': 'clear', 'stated_delay_reason': 'reduced_income',
+        'text_source_id': 'note:old', 'text_source_ts': '2026-09-27T10:00:00',
+    }
+    with_text = engine.recommend('G-0001')
+    assert with_text['action'] == baseline['action']
+    assert with_text['score'] == baseline['score']
+    assert with_text['policy_checks'] == baseline['policy_checks']
+    assert 'Context only' in with_text['text_evidence']
+
+
 @pytest.mark.parametrize('change,reason', [
     ({'cease_contact': True}, 'cease_communication'),
     ({'holds': ['insolvency_hold']}, 'insolvency_hold'),

@@ -321,35 +321,30 @@ cohort, a material drift that limits calibration and group comparisons.
 The supported presentation claims and pilot evidence requirements are listed
 in `docs/TASK_A_DECK_CLAIMS.md`.
 
-## Point-in-time text signals (API extraction pending)
+## Point-in-time text signals (offline rules)
 
-`src/features/text.py` defines `hardship_signal` (`none`, `possible`, `clear`)
-and `stated_delay_reason` once. Both the training text table builder and live
-`recommend()` call `features_at()`, which selects only a cached source before
-the promise or scoring time. Completed transcripts require a prior calendar
-day because their local/UTC alignment is uncertain. A parity test checks the
-same cutoff behavior. The separate `src/features/text_groq.py` wrapper reads
-`GROQ_API_KEY` from `.env`, extracts bounded batches, and writes
-`local_artifacts/decisioning/text_annotations.json`; it imports nothing from
-Layer 2. It refuses batches that cannot finish before 18:00 IST. The local
-cache is kept outside Git, and no API is called in the demo.
+`src/features/text.py` defines the deterministic extraction rules for
+`hardship_signal` (`none`, `possible`, `clear`) and `stated_delay_reason`.
+`features_at()` is shared by the training text table and live `recommend()`;
+it selects only a source before the promise or scoring time. Completed
+transcripts require a prior calendar day because their local/UTC alignment is
+uncertain. The recommendation displays the source ID, timestamp, and rule
+signals as context. It never feeds them into the model, policy gate, or action
+ranker. A text signal alone cannot trigger adverse collection treatment.
 
-The 500 public note labels and 500 transcript labels were loaded and prepared
-for evaluation. **Groq extraction has not run:** at implementation time it was
-after 18:00 IST and this workspace had no `.env` or `GROQ_API_KEY`. The
-committed `artifacts/text_public_evaluation.json` therefore reports 0/500
-evaluated for each source and null precision/recall. Do not cite text accuracy
-or claim populated text features until the shared key is available in an
-approved pre-18:00 window and the cache is rebuilt. Missing annotations yield
-unknown text features. Text signals are context only and cannot alone trigger
-adverse treatment or change the model/ranker.
+Run `python -m src.features.text_rules` to rebuild the offline cache and
+public-label evaluation, then `python -m src.features.text_data` to rebuild
+`local_artifacts/features/promise_text.parquet`. No API key or live extraction
+is required. The sparse cache contains only source IDs and positive rule
+annotations; a missing annotation means unknown, not no hardship.
 
-When the window and key are available, run `python -m src.features.text_public
-run`, then `python -m src.features.text_data` before the demo. The first command
-resumes from its separate cache after each successful batch; the second writes
-`local_artifacts/features/promise_text.parquet` with the same feature definition.
-Rerun the public evaluator and review its precision/recall before using any
-text result in a decision workflow.
+The committed [public evaluation](artifacts/text_public_evaluation.json)
+covers 500 notes and 500 transcripts. Hardship precision/recall was
+1.000/0.815 for notes and 0.991/0.863 for transcripts. Delay-reason presence
+precision/recall was 0.856/0.628 and 0.808/0.770. Exact reason accuracy was
+0.704 and 0.518. These synthetic public examples were inspected while writing
+the rules, so this is development-set measurement, not independent evidence of
+real-world accuracy. The catch-all `other` reason is especially weak.
 
 ## Committed evidence and remaining work
 

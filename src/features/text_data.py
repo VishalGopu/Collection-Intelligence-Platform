@@ -11,7 +11,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-from .text import features_at, load_cache
+from .text import extract_rules, features_at, load_cache
 from .training import quote
 
 
@@ -22,6 +22,7 @@ def source_index(data_dir: Path = DATA) -> dict[str, list[dict]]:
     """Read only identifiers and event timestamps, keeping customer links local."""
     con = duckdb.connect()
     try:
+        con.execute("SET memory_limit='2GB'")
         rows = con.execute(f'''SELECT 'note:' || note_id AS event_id,
                 crm_customer_id,try_cast(note_ts_utc AS TIMESTAMP) AS event_ts
             FROM read_csv({quote(data_dir/'data/agent_notes.csv')},all_varchar=true)
@@ -43,33 +44,37 @@ def source_index(data_dir: Path = DATA) -> dict[str, list[dict]]:
 def labelled_items(data_dir: Path = DATA) -> tuple[list[dict], list[dict]]:
     """Return public texts and gold labels; labels never enter scoring features."""
     root = data_dir / 'labels'
+    label_rows = []
+    for filename, prefix in (
+        ('agent_notes_labels_public_500.csv', 'note:'),
+        ('call_transcripts_labels_public_500.csv', 'transcript:'),
+    ):
+        with (root/filename).open(newline='', encoding='utf-8') as stream:
+            label_rows.extend((prefix, row) for row in csv.DictReader(stream))
+    note_ids = {row['note_id'] for prefix, row in label_rows if prefix == 'note:'}
     notes = {}
     with (data_dir/'data/agent_notes.csv').open(newline='', encoding='utf-8') as stream:
         for row in csv.DictReader(stream):
-            notes[row['note_id']] = row['note_text'] or ''
+            if row['note_id'] in note_ids:
+                notes[row['note_id']] = row['note_text'] or ''
     transcripts = {}
     with (data_dir/'data/call_transcripts.csv').open(newline='', encoding='utf-8') as stream:
         for row in csv.DictReader(stream):
             transcripts[row['transcript_id']] = row['file_path']
     items, labels = [], []
-    for filename, prefix, lookup in (
-        ('agent_notes_labels_public_500.csv', 'note:', notes),
-        ('call_transcripts_labels_public_500.csv', 'transcript:', transcripts),
-    ):
-        with (root/filename).open(newline='', encoding='utf-8') as stream:
-            for row in csv.DictReader(stream):
-                source_id = row['note_id'] if prefix == 'note:' else row['transcript_id']
-                if prefix == 'note:':
-                    content = lookup[source_id]
-                else:
-                    payload = json.loads((data_dir/'files'/lookup[source_id]).read_text(encoding='utf-8'))
-                    content = ' '.join(turn['text'] for turn in payload['turns']
-                                       if turn.get('speaker') == 'customer')
-                event_id = prefix + source_id
-                items.append({'id': event_id, 'text': content[:1800]})
-                labels.append({'id': event_id, 'source': prefix.rstrip(':'),
-                               'hardship_signal': row['label_hardship'],
-                               'stated_delay_reason': row['label_stated_delay_reason'] or None})
+    for prefix, row in label_rows:
+        source_id = row['note_id'] if prefix == 'note:' else row['transcript_id']
+        if prefix == 'note:':
+            content = notes[source_id]
+        else:
+            payload = json.loads((data_dir/'files'/transcripts[source_id]).read_text(encoding='utf-8'))
+            content = ' '.join(turn['text'] for turn in payload['turns']
+                               if turn.get('speaker') == 'customer')
+        event_id = prefix + source_id
+        items.append({'id': event_id, 'text': content})
+        labels.append({'id': event_id, 'source': prefix.rstrip(':'),
+                       'hardship_signal': row['label_hardship'],
+                       'stated_delay_reason': row['label_stated_delay_reason'] or None})
     return items, labels
 
 
@@ -111,6 +116,7 @@ def build_training_text(data_dir: Path = DATA,
     index = source_index(data_dir) if annotations else {}
     con = duckdb.connect()
     try:
+        con.execute("SET memory_limit='2GB'")
         promises = con.execute(f'''SELECT ptp_id,crm_customer_id,promise_created_ts
             FROM read_parquet({quote(Path('local_artifacts/features/promise_training.parquet'))})
             UNION ALL SELECT ptp_id,crm_customer_id,promise_created_ts
@@ -152,5 +158,5 @@ def build_training_text(data_dir: Path = DATA,
 
 if __name__ == '__main__':
     items, labels = labelled_items()
-    report = evaluate_public(labels, load_cache())
+    report = evaluate_public(labels, {item['id']: extract_rules(item['text']) for item in items})
     print(json.dumps({'training': build_training_text(), 'public_evaluation': report}, indent=2))

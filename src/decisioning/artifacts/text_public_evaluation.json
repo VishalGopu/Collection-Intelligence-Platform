@@ -1,161 +1,176 @@
 {
-  "annotation_method": "Groq batch JSON extraction",
-  "status": "pending_api_extraction",
-  "no_result_means": "No Groq prediction; precision and recall are not estimable.",
+  "annotation_method": "deterministic rules; no API",
+  "status": "complete",
+  "schema_version": "text-rules-v1",
+  "source_records": {
+    "note": 760594,
+    "transcript": 25000
+  },
+  "cached_records_with_signal": {
+    "note": 242396,
+    "transcript": 17774
+  },
+  "cache_policy": "Sparse positive-signal cache; no annotation means unknown, not no hardship.",
   "public_evaluation": {
     "note": {
       "public_labels": 500,
-      "evaluated": 0,
+      "evaluated": 500,
       "hardship_clear_or_possible": {
-        "tp": 0,
+        "tp": 119,
         "fp": 0,
-        "fn": 0,
-        "precision": null,
-        "recall": null
+        "fn": 27,
+        "precision": 1.0,
+        "recall": 0.8151
       },
       "stated_delay_reason_present": {
-        "tp": 0,
-        "fp": 0,
-        "fn": 0,
-        "precision": null,
-        "recall": null
+        "tp": 172,
+        "fp": 29,
+        "fn": 102,
+        "precision": 0.8557,
+        "recall": 0.6277
       },
-      "delay_reason_exact_accuracy": null,
+      "delay_reason_exact_accuracy": 0.704,
       "delay_reason_by_class": {
         "reduced_income": {
-          "tp": 0,
-          "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "tp": 36,
+          "fp": 1,
+          "fn": 43,
+          "precision": 0.973,
+          "recall": 0.4557
         },
         "payroll_timing": {
-          "tp": 0,
-          "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "tp": 35,
+          "fp": 14,
+          "fn": 1,
+          "precision": 0.7143,
+          "recall": 0.9722
         },
         "forgot": {
-          "tp": 0,
+          "tp": 42,
           "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "fn": 1,
+          "precision": 1.0,
+          "recall": 0.9767
         },
         "bank_error": {
-          "tp": 0,
+          "tp": 2,
           "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "fn": 8,
+          "precision": 1.0,
+          "recall": 0.2
         },
         "travel": {
-          "tp": 0,
+          "tp": 9,
           "fp": 0,
           "fn": 0,
-          "precision": null,
-          "recall": null
+          "precision": 1.0,
+          "recall": 1.0
         },
         "dispute": {
-          "tp": 0,
+          "tp": 6,
           "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "fn": 2,
+          "precision": 1.0,
+          "recall": 0.75
         },
         "refuses": {
-          "tp": 0,
+          "tp": 8,
           "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "fn": 2,
+          "precision": 1.0,
+          "recall": 0.8
         },
         "other": {
-          "tp": 0,
-          "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "tp": 17,
+          "fp": 31,
+          "fn": 62,
+          "precision": 0.3542,
+          "recall": 0.2152
         }
       }
     },
     "transcript": {
       "public_labels": 500,
-      "evaluated": 0,
+      "evaluated": 500,
       "hardship_clear_or_possible": {
-        "tp": 0,
-        "fp": 0,
-        "fn": 0,
-        "precision": null,
-        "recall": null
+        "tp": 226,
+        "fp": 2,
+        "fn": 36,
+        "precision": 0.9912,
+        "recall": 0.8626
       },
       "stated_delay_reason_present": {
-        "tp": 0,
-        "fp": 0,
-        "fn": 0,
-        "precision": null,
-        "recall": null
+        "tp": 324,
+        "fp": 77,
+        "fn": 97,
+        "precision": 0.808,
+        "recall": 0.7696
       },
-      "delay_reason_exact_accuracy": null,
+      "delay_reason_exact_accuracy": 0.518,
       "delay_reason_by_class": {
         "reduced_income": {
-          "tp": 0,
+          "tp": 44,
           "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "fn": 80,
+          "precision": 1.0,
+          "recall": 0.3548
         },
         "payroll_timing": {
-          "tp": 0,
-          "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "tp": 34,
+          "fp": 32,
+          "fn": 1,
+          "precision": 0.5152,
+          "recall": 0.9714
         },
         "forgot": {
-          "tp": 0,
+          "tp": 38,
           "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "fn": 2,
+          "precision": 1.0,
+          "recall": 0.95
         },
         "bank_error": {
-          "tp": 0,
+          "tp": 8,
           "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "fn": 2,
+          "precision": 1.0,
+          "recall": 0.8
         },
         "travel": {
-          "tp": 0,
+          "tp": 8,
           "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "fn": 2,
+          "precision": 1.0,
+          "recall": 0.8
         },
         "dispute": {
-          "tp": 0,
+          "tp": 53,
           "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "fn": 13,
+          "precision": 1.0,
+          "recall": 0.803
         },
         "refuses": {
-          "tp": 0,
+          "tp": 10,
           "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "fn": 2,
+          "precision": 1.0,
+          "recall": 0.8333
         },
         "other": {
-          "tp": 0,
-          "fp": 0,
-          "fn": 0,
-          "precision": null,
-          "recall": null
+          "tp": 62,
+          "fp": 112,
+          "fn": 62,
+          "precision": 0.3563,
+          "recall": 0.5
         }
       }
     }
-  }
+  },
+  "limitations": [
+    "The public labels are synthetic and may be noisy; these metrics do not establish real-world accuracy.",
+    "Public examples were inspected while writing the rules, so this is development-set measurement, not an independent test.",
+    "Rules can miss paraphrases and languages not covered by the patterns.",
+    "Signals are context only and cannot by themselves trigger adverse collection treatment."
+  ]
 }

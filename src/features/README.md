@@ -33,3 +33,14 @@ No deposit or transaction table is read, so Canada Child Benefit deposits
 cannot enter this matrix. Any future deposit/transaction feature must
 explicitly exclude them, with regression fixtures that prove exclusion.
 `FEATURE_COLUMNS` is the shared training/scoring contract.
+
+Text evidence uses deterministic rules in `text.py` for `hardship_signal` and
+`stated_delay_reason`. Run `python -m src.features.text_rules` to evaluate the
+500 public labels for each source and build the separate, ignored annotation
+cache; then run `python -m src.features.text_data` to make point-in-time
+training text rows. `features_at` is used for both those rows and live scoring.
+Only customer speech in transcripts is scanned, and only notes or completed
+calls strictly before the scoring time are eligible. These signals are context
+in the recommendation, not repayment-model features or independent reasons to
+take an adverse action. The committed evaluation is in
+`src/decisioning/artifacts/text_public_evaluation.json`.

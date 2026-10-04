@@ -149,9 +149,20 @@ class RecommendationEngine:
             result['limitations'][1] = (
                 'Promise-kept probability is observational and conditional on a promise; it is not action uplift.')
         if hasattr(self.adapter, 'text_features'):
-            result['text_features'] = self.adapter.text_features(context)
+            text_features = self.adapter.text_features(context)
+            result['text_features'] = text_features
+            if text_features.get('text_source_id'):
+                result['text_evidence'] = (
+                    f"Rule signals from {text_features['text_source_id']} dated "
+                    f"{text_features['text_source_ts']}: hardship "
+                    f"{text_features['hardship_signal']}; stated delay "
+                    f"{text_features['stated_delay_reason'] or 'not identified'}. "
+                    'Context only; not used to choose or rank actions.'
+                )
+            else:
+                result['text_evidence'] = 'No pre-scoring rule text signal was available.'
             result['limitations'].append(
-                'Precomputed text signals are context only; they cannot alone trigger an adverse action.')
+                'Precomputed rule text signals are context only; they cannot alone trigger an adverse action.')
         self.audit.save(result)
         return result
 
