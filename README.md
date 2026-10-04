@@ -19,6 +19,8 @@ The Streamlit interface is a **CIBC-themed concept demo** based on the supplied 
 
 Use [the dataset guide](docs/DATASET_DOWNLOAD.md) to download the release locally. The dataset, virtual environment, text annotation cache, and generated Parquet files are not committed.
 
+For a container setup, follow the [Docker Compose guide](docs/DOCKER.md). It mounts the downloaded release and generated artifacts instead of copying them into the image; the app opens at `http://localhost:8504` by default.
+
 For a live presentation, follow the [read-aloud presenter script](docs/presenter_script.md) or the shorter [two-role collections manager walkthrough](docs/collections_manager_walkthrough.md). The [deck outline](docs/deck_outline.md), [architecture diagram](docs/architecture_built.png), [C360 contract](contracts/golden_c360_v1.json), and [benchmark evidence](docs/insights/gemini_released_35.md) cover the main review material. Module-specific implementation details live beside the code.
 
 The build-phase requirements are in `build_phase.pdf`; the proposed architecture is in `HACKERS_SystemDesign.pdf`.

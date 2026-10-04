@@ -1,0 +1,15 @@
+services:
+  collections:
+    build: .
+    init: true
+    ports:
+      - "${COLLECTIONS_PORT:-8504}:8501"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      OMP_NUM_THREADS: "2"
+    volumes:
+      - ./maple_data:/workspace/maple_data:ro
+      - ./local_artifacts:/workspace/local_artifacts
+      - ./submission:/workspace/submission
