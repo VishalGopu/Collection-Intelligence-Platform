@@ -17,7 +17,7 @@ Hackathon build for a golden customer view (C360), grounded collections question
 
 Use [the dataset guide](docs/DATASET_DOWNLOAD.md) to download the release locally. The dataset, virtual environment, text annotation cache, and generated Parquet files are not committed.
 
-For a live presentation, follow the [two-role collections manager walkthrough](docs/collections_manager_walkthrough.md). The [deck outline](docs/deck_outline.md), [architecture diagram](docs/architecture_built.png), [C360 contract](contracts/golden_c360_v1.json), and [benchmark evidence](docs/insights/gemini_released_35.md) cover the main review material. Module-specific implementation details live beside the code.
+For a live presentation, follow the [read-aloud presenter script](docs/presenter_script.md) or the shorter [two-role collections manager walkthrough](docs/collections_manager_walkthrough.md). The [deck outline](docs/deck_outline.md), [architecture diagram](docs/architecture_built.png), [C360 contract](contracts/golden_c360_v1.json), and [benchmark evidence](docs/insights/gemini_released_35.md) cover the main review material. Module-specific implementation details live beside the code.
 
 The build-phase requirements are in `build_phase.pdf`; the proposed architecture is in `HACKERS_SystemDesign.pdf`.
 
