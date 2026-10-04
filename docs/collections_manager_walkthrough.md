@@ -10,7 +10,7 @@ The demo uses the synthetic release dated **28 September 2026**. Start the app f
 
 ### 1. Ask a portfolio question (about 1 minute)
 
-Show the **Dashboard**: real open-case, overdue, open-promise, and golden-customer totals, a weekly case chart, arrears-age distribution, and queue overview. Then open **Ask Collections** in the sidebar, leave **Scope: All Collections**, and paste:
+Show the **Dashboard**: real open-case, overdue, open-promise, and golden-customer totals, a weekly case chart, arrears-age distribution, and queue overview. The expandable **Agent coverage on the snapshot date** panel uses `agents.csv` and `agent_shifts.csv` for dated staffing context; it does not claim live availability or assign cases. Then open **Ask Collections** in the sidebar, leave **Scope: All Collections**, and paste:
 
 > How many open cases are there, and list top 10?
 
@@ -56,6 +56,8 @@ The scope label must say **selected golden customer**. A customer-specific quest
 ### 4. Generate a policy-checked proposal (about 1 minute)
 
 Open **Decision review** and click **Generate recommendation**. For this hero, the proposal is **`specialist_review`** because the case hardship flag requires that route. Read the **first reason** aloud: the policy trigger comes before model factors. The app then shows three SHAP model factors as context, dated text evidence when available, and a **Blocked actions** panel. For this case, ordinary `call`, `sms`, and `email` are blocked with reason `specialist_route_required`.
+
+The **Suggested specialist** panel shows the existing certified candidate, agent roster details, and dated shift. A team lead must verify the queue and availability before making an assignment.
 
 Say: “The model informs the review, but policy decides what is permitted. Hardship and vulnerability flags route to a specialist; they are not model features or ranking inputs. A text signal alone cannot trigger adverse treatment.”
 

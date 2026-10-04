@@ -10,6 +10,7 @@ import pandas as pd
 import streamlit as st
 
 from app.ask import answer as answer_question
+from app.agents import specialist_candidate, staffing_snapshot
 from app.answer_display import display_answer
 from app.auth import authenticate, configured_password
 from app.catalog import browse_customers
@@ -65,6 +66,16 @@ def cached_portfolio() -> dict:
 @st.cache_data(show_spinner=False)
 def cached_c360_coverage() -> dict:
     return coverage_snapshot()
+
+
+@st.cache_data(show_spinner=False)
+def cached_staffing(as_of_date: str) -> dict:
+    return staffing_snapshot(as_of_date)
+
+
+@st.cache_data(show_spinner=False)
+def cached_specialist(agent_id: str, as_of_date: str) -> dict | None:
+    return specialist_candidate(agent_id, as_of_date)
 
 
 def change_page(page: str) -> None:
@@ -197,6 +208,16 @@ def render_dashboard() -> None:
                        "Average DPD": row["avg_dpd"],
                        "Overdue (CAD)": row["overdue_cad"]} for row in snapshot["queues"]],
                      width="stretch", hide_index=True)
+    with st.expander("Agent coverage on the snapshot date"):
+        staffing = cached_staffing(snapshot["snapshot_date"])
+        a, b, c, d = st.columns(4)
+        a.metric("Active agents", f"{staffing['active_agents']:,}")
+        b.metric("Scheduled", f"{staffing['scheduled_agents']:,}")
+        c.metric("Marked absent", f"{staffing['absent_agents']:,}")
+        d.metric("Scheduled and vulnerability-certified",
+                 f"{staffing['scheduled_certified_agents']:,}")
+        st.caption("From agents.csv and agent_shifts.csv. A dated shift is not proof "
+                   "of real-time availability or an assignment.")
     queue_col, customer_col, _ = st.columns([1, 1, 3])
     queue_col.button("Open priority queue", type="primary", on_click=change_page,
                      args=("Priority queue",), use_container_width=True)
@@ -495,6 +516,27 @@ def render_decision() -> None:
                 st.dataframe(alternatives, width="stretch", hide_index=True)
             else:
                 st.write("No other permitted action is available in this proposal.")
+        if action == "specialist_review":
+            with st.container(border=True):
+                st.subheader("Suggested specialist")
+                agent_id = proposal.get("specialist_agent_id")
+                candidate = cached_specialist(agent_id, proposal["data_snapshot_date"]) if agent_id else None
+                if candidate:
+                    st.write(f"**{candidate['name']}** (`{candidate['agent_id']}`) · Team {candidate['team']}")
+                    st.caption(f"Active: {'yes' if candidate['active'] else 'no'} · "
+                               f"Vulnerability-certified: {'yes' if candidate['certified'] else 'no'} · "
+                               f"Case load: {candidate['case_load']}/{candidate['max_cases']}")
+                    if candidate["shifts"]:
+                        for shift in candidate["shifts"]:
+                            st.caption(f"Shift on {proposal['data_snapshot_date']}: "
+                                       f"{shift['start']}-{shift['end']} · "
+                                       f"{shift['queue'].replace('_', ' ').title()} queue · "
+                                       f"Absent: {'yes' if shift['absent'] else 'no'}")
+                    else:
+                        st.caption("No shift is recorded for this agent on the snapshot date.")
+                else:
+                    st.write("No certified agent with remaining case capacity was suggested.")
+                st.caption("Candidate only. A team lead must confirm queue, shift, and capacity before assignment.")
         st.caption(f"Decision ID: {proposal['decision_id']} ? Snapshot: "
                    f"{proposal['data_snapshot_date']} ? Status: {proposal['status']}")
         current_audit = latest_audit_rows(selected_id)

@@ -22,6 +22,10 @@ Example customer: **`G-883e676faa7837d10aa7`**. This is a useful example because
 
 **Say:** “The weekly bars count new cases opened in each week of the displayed eight-week period. The arrears chart groups currently open cases by days past due: 0–29, 30–59, 60–89, 90 or more, or unknown. The queue table shows each queue’s open-case count, average days past due, and overdue balance. It is a workload view, not a measure of an individual agent’s performance.”
 
+**Do:** Expand **Agent coverage on the snapshot date**.
+
+**Say:** “We also use the agent roster and shift schedule. The snapshot has **787 active agents**, **720 scheduled active agents**, **0 marked absent active agents**, and **368 scheduled agents certified for vulnerable-customer work**. These are staffing context, not real-time availability or an automatic assignment.”
+
 **Do:** Point to **Open priority queue** and **Find a customer**. These are shortcuts to the corresponding pages.
 
 ## 3. Ask Collections: show an answer and its evidence
