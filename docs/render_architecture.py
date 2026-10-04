@@ -82,10 +82,10 @@ box((1025, 220, 1530, 590), "Layer 2 · Questions", [
     "Certified SQL in DuckDB", "Deterministic question routes", "Document / transcript sources", "SQLGlot read-only validation", "Groq or OpenAI LLM fallback",
 ], PURPLE, "AI: optional SQL planning")
 box((1025, 710, 1530, 1080), "Layers 3/4 · Decisioning", [
-    "Point-in-time feature helpers", "LightGBM promise model + SHAP", "Policy gate and action ranking", "Support case specialist route", "Proposal saved before review",
+    "Point-in-time + text rules", "LightGBM promise model + SHAP", "Policy gate and action ranking", "Support case specialist route", "Proposal saved before review",
 ], AMBER, "AI: LightGBM + SHAP")
 box((1640, 255, 2120, 655), "Streamlit app", [
-    "Customer: linked C360 records", "Ask: answer + SQL / sources", "Recommendation: proposal", "Selected-case scope guard", "Global metrics labeled global",
+    "Customer: linked C360 records", "Ask: global or linked scope", "Recommendation + policy blocks", "Worklist: ranked promises", "SQL / sources on every answer",
 ], BLUE)
 box((1640, 790, 2120, 1040), "Human review", [
     "Approve / modify / reject", "Policy rechecked on review", "No automated customer contact",
@@ -106,9 +106,9 @@ arrow([(1880, 655), (1880, 790)], TEAL)
 arrow([(1880, 1040), (1880, 1130)], PURPLE)
 
 draw.text((74, 1170), "Current boundary", font=font(23, True), fill=INK)
-draw.text((74, 1210), "Layer 2 aggregate metrics query release views; customer-specific analytics await a C360 filter.",
+draw.text((74, 1210), "Customer-scoped Ask uses a narrow linked-crosswalk route; unsupported filters are refused.",
           font=font(20), fill=MUTED)
-draw.text((74, 1245), "Unknown safe questions may use LLM SQL planning; no vector index or live action execution is built.",
+draw.text((74, 1245), "Offline text rules supply context; unknown safe questions may use LLM SQL planning; no live contact.",
           font=font(20), fill=MUTED)
 
 image.save(OUT, optimize=True)

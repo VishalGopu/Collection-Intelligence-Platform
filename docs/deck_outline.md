@@ -1,61 +1,77 @@
-# Collection Intelligence Platform — 10-slide deck outline
+# Collection Intelligence Platform — ten-slide outline
 
-## 1. The collections decision problem
+## 1. Problem
 
-- Agents need one trusted customer view across CRM, cards, lending, core banking, and Collections.
-- Questions must be grounded in certified metrics or policy sources.
-- Recommendations must be explainable, policy-checked, and reviewed by a human.
+Collections agents need a linked customer view, grounded answers, and a
+policy-checked proposal they can review before any action.
 
-## 2. What we built
+## 2. Built flow
 
-- Four-layer flow: C360 data product, governed insights, decisioning, and human review.
-- Streamlit demo connects Customer, Ask, Recommendation, and Worklist views.
-- Hero demo: `G-39c6b287f70371cd9fc6`.
+The Streamlit Customer, Ask, Recommendation, and Worklist tabs connect a
+Python/DuckDB C360 build, governed SQL/documents, point-in-time features,
+LightGBM/SHAP, a policy gate, and SQLite review audit. Hero:
+`G-39c6b287f70371cd9fc6`.
 
-## 3. Layer 1 — golden customer view
+## 3. Golden customer and quality
 
-- A reproducible Python/DuckDB batch profiles 31 source tables and publishes Parquet outputs.
-- Identity links require confidence at least 0.95, a 0.05 lead, and no conflicting profile.
-- Unlinked and review-pending records stay out of customer-level answers and decisions.
+31 source tables are profiled. Linked identities require rule confidence at
+least 0.95, at least 0.05 lead over another candidate, and no conflicting
+profile. The Why linked? table displays source record, matching evidence,
+method, confidence, and status. Ambiguous links stay pending.
 
-## 4. “Why linked?” and data quality
+## 4. Governed Ask
 
-- The UI shows source keys, match method, evidence names, confidence, and link status.
-- Quality gates cover uniqueness, referential integrity, confidence, amounts, and case resolution.
-- Protected fields are excluded from published C360 outputs.
+All Collections is the default; This customer uses a narrow certified
+crosswalk route. Unsupported filters are refused. Every non-refused answer
+shows SQL or source IDs. The 34-question uncached fresh/blind run produced 33
+non-error executions; 1 failed on Groq JSON validation before SQL. It took
+349.93 seconds including 136.98 seconds setup, with 10 retries and 172 seconds
+of rate-limit waits. This is an execution result, not an accuracy score.
 
-## 5. Layer 2 — grounded answers
+## 5. Promise model evidence
 
-- Deterministic routes answer the released benchmark with certified read-only DuckDB SQL, documents, and transcript evidence.
-- Every answer displays SQL or source IDs, snapshot date, and metric definition when applicable.
-- Refusals cover out-of-scope questions, protected-attribute profiling, bulk PII, and unsafe actions.
+On 54,657 test-period resolved promises: 62.4% broke. Logistic regression
+ROC-AUC 0.677, broken-class PR-AUC 0.752, Brier 0.2492. Calibrated LightGBM
+ROC-AUC 0.677, broken-class PR-AUC 0.746, Brier 0.2245. The constant test-rate
+oracle Brier is 0.2347; the pre-July training-rate constant is 0.3059.
+Isotonic calibration was fitted on a pre-test validation period.
 
-## 6. Layer 3/4 — prediction plus policy
+## 6. Policy, reasons, and text
 
-- Point-in-time features feed a local LightGBM promise-kept model.
-- SHAP factors explain the proposal; policy rules control permitted actions and specialist routing.
-- Vulnerability flags route support review; they do not rank ordinary collection actions.
+Policy blocks forbidden channels and routes hardship/vulnerability to a
+specialist. SHAP supplies model reasons only after policy. Offline text rules
+add dated context and cannot alone trigger adverse treatment. On 500 public
+labels per source, hardship precision/recall was 1.000/0.815 for notes and
+0.991/0.863 for transcripts. Delay-reason presence was 0.856/0.628 and
+0.808/0.770. Public examples influenced rule writing, so these are
+development-set results.
 
 ## 7. Human review and audit
 
-- Proposals are pending until a reviewer approves, modifies, or rejects them.
-- Reviewer ID and reason are required; review events are append-only in SQLite.
-- The system never sends customer contact or activates a payment plan.
+Approve, modify, or reject requires reviewer ID and reason. Policy is checked
+again during review. Audit events are append-only locally; no contact is sent.
+The app shows each blocked action and its reason.
 
-## 8. Worklist for operations
+## 8. Worklist
 
-- Linked open promises are ranked by predicted break risk.
-- The queue shows customer ID, case, risk, top reason, and model version.
-- Leakage checks ensure source data is available before promise creation; the queue is a review list, not an action list.
+Linked open promises are sorted by predicted break risk with the top SHAP
+reason. It is a human review queue. The top 10% of test risks contained 12.9%
+of broken promises; the top 20% contained 25.6%. The signal is modest.
 
-## 9. Demo evidence and safeguards
+## 9. Fairness and limitations
 
-- Live screenshots cover Customer, Why linked?, Ask SQL, refusal, recommendation, audit, and Worklist.
-- Fresh-clone verification: 142 tests passed, two data-dependent skips, and the Streamlit health endpoint returned `ok`.
-- Current boundary: the app passes golden-ID scope when Layer 2 exposes it; customer-scoped Ask remains clearly refused until then.
+The restricted measurement script examined 52,283 linked test promises,
+comparing predicted risk, observed break rate, and historical channel mix with
+confidence intervals. Protected fields are measurement-only. Mean predicted
+break risk was 0.540/0.541 for women/men, and 0.544/0.530 for citizens/permanent
+residents. Break-rate drift was 35.7% training to 62.5% in the linked test
+cohort. Agents selected historical channels; no causal fairness or uplift claim
+follows from these observations.
 
-## 10. Design decisions and next step
+## 10. Pilot and deployment boundary
 
-- Streamlit and local DuckDB/SQLite keep the build reproducible and inspectable.
-- Optional Groq/OpenAI SQL planning is validated and read-only; governed routes need no API key.
-- Next integration step: Layer 2 exposes its scoped answer interface, then the app enables customer-scoped metrics without changing the UI contract.
+Use a controlled pilot with fixed policy and model versions, explicit consent,
+authentication, monitoring, and outcome measurement to test whether agent
+decisions improve. The current demo is local, synthetic, and does not execute
+customer contact. Exact dependencies and 185 tests are committed; the
+fresh-clone check passed 183 tests before the latest two app tests were added.
