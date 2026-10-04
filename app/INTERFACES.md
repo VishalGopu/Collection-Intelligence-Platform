@@ -1,6 +1,6 @@
 # App integration interfaces
 
-All three tabs are connected in `app/main.py`. Customer-level joins require published C360 links with `link_status = 'linked'`; fairness-test fields stay out of displayed answers and decision features. Ask defaults to global Collections; Recommendation uses the selected `golden_customer_id`.
+All four tabs are connected in `app/main.py`. Customer-level joins require published C360 links with `link_status = 'linked'`; fairness-test fields stay out of displayed answers and decision features. Ask defaults to All Collections and has an explicit This customer selector. The selected scope supports only certified customer routes and refuses unsupported filters. Recommendation uses the selected `golden_customer_id` and shows blocked actions with policy reasons. Worklist shows open promises ranked for human review.
 
 ## Ask tab — Questions team
 

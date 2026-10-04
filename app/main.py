@@ -13,6 +13,7 @@ from app.recommend import connected, latest_audit_rows, recommend, review, workl
 HERO_ID = "G-39c6b287f70371cd9fc6"
 DEMO_IDS = (
     HERO_ID,
+    "G-b1714eca2809e88d7587",
     "G-ce8c778700c9b95b55d8",
     "G-f4b22f89068d857ebe87",
     "G-39214e6dde2a06706f89",
@@ -102,12 +103,19 @@ with ask_tab:
     st.subheader("Ask Collections")
     st.caption("General metrics and policy answers use the 28 September 2026 release. "
                "Ask defaults to all Collections.")
+    ask_scope = st.radio("Scope", ("All Collections", "This customer"),
+                         horizontal=True, key="ask_scope")
+    if ask_scope == "This customer":
+        st.caption(f"Selected golden customer: {st.session_state.golden_id.strip()}")
     question = st.text_area("Question", key="ask_question",
                             placeholder="What is the average days past due of open cases by queue?")
     if st.button("Get answer", key="ask_submit"):
         try:
             st.session_state.ask_result = answer_question(
                 question,
+                golden_customer_id=(st.session_state.golden_id.strip()
+                                    if ask_scope == "This customer" else None),
+                scope_requested=ask_scope == "This customer",
             )
         except Exception as error:
             st.session_state.ask_result = None
@@ -169,6 +177,15 @@ with recommendation_tab:
             st.dataframe(proposal.get("alternatives", []), width="stretch", hide_index=True)
             st.markdown("**Policy checks**")
             checks = proposal.get("policy_checks", {})
+            blocked_actions = [
+                {"Action": action, "Why blocked": "; ".join(check.get("reasons", []))}
+                for action, check in checks.items() if not check.get("allowed")
+            ]
+            st.markdown("**Blocked actions**")
+            if blocked_actions:
+                st.dataframe(blocked_actions, width="stretch", hide_index=True)
+            else:
+                st.caption("No action was blocked by the current policy checks.")
             st.dataframe([{"action": action, "allowed": check["allowed"],
                            "reasons": ", ".join(check.get("reasons", []))}
                           for action, check in checks.items()],

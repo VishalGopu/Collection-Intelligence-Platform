@@ -30,6 +30,7 @@ def _refusal(question: str, message: str) -> dict:
 
 def answer(
     question: str, *, golden_customer_id: str | None = None,
+    scope_requested: bool = False,
     dataset_root: Path = DATASET, c360_root: Path = C360,
     customer_context: dict | None = None,
 ) -> dict:
@@ -41,6 +42,8 @@ def answer(
     question = question.strip()
     if not question:
         raise ValueError("Enter a question")
+    if scope_requested and golden_customer_id is None:
+        return _refusal(question, "Select a published golden customer for this scope.")
     mentioned_ids = {"G-" + match[2:].lower() for match in GOLDEN_ID_IN_QUESTION.findall(question)}
     if len(mentioned_ids) > 1:
         return _refusal(question, "Ask about one golden customer at a time.")
@@ -62,6 +65,13 @@ def answer(
         return _refusal(question, "That case is not linked to the selected golden customer.")
     customer_scoped = bool(CUSTOMER_SCOPE.search(question) or
                            (golden_customer_id and golden_customer_id.casefold() in question.casefold()))
+    engine_question = question
+    if scope_requested and not customer_scoped:
+        if re.fullmatch(r"how many open cases are there\??", question, re.IGNORECASE):
+            engine_question = "How many open cases does this customer have?"
+            customer_scoped = True
+        else:
+            return _refusal(question, "No certified customer-scoped route preserves every filter in this question.")
     parameters = inspect.signature(InsightEngine.answer).parameters
     if golden_customer_id and customer_scoped and "scope" not in parameters and "golden_customer_id" not in parameters:
         return _refusal(
@@ -72,7 +82,7 @@ def answer(
     engine = InsightEngine(dataset_root)
     try:
         if golden_customer_id and "scope" in parameters:
-            card = engine.answer(question, scope=golden_customer_id)
+            card = engine.answer(engine_question, scope=golden_customer_id)
         elif golden_customer_id and "golden_customer_id" in parameters:
             card = engine.answer(question, golden_customer_id=golden_customer_id)
         else:
@@ -80,6 +90,7 @@ def answer(
     finally:
         engine.connection.close()
     result = asdict(card)
+    result["question"] = question
     result["data_date"] = result.pop("as_of_date")
     result["scope"] = ("selected golden customer" if result.get("scope", "").startswith("selected golden customer")
                        else "global Collections")
