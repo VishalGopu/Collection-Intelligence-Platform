@@ -5,6 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from app.ask import answer as answer_question
+from app.answer_display import display_answer
 from app.customer import load_customer
 from app.recommend import connected, latest_audit_rows, recommend, review, worklist
 
@@ -99,16 +100,23 @@ with ask_tab:
             st.error(f"Could not answer the question: {error}")
     result = st.session_state.get("ask_result")
     if result:
+        st.caption(f"Scope: {result['scope']} · Data date: {result['data_date']}")
         if result["refused"]:
             st.warning(f"Refused: {result['answer']}")
         else:
-            st.write(result["answer"])
-        st.caption(f"Data date: {result['data_date']} · Scope: {result['scope']} · "
-                   f"Mode: {result['mode']}")
-        st.markdown("**Metric definition**")
-        st.write(result["metric_definition"] or "No certified metric definition applies to this answer.")
-        st.markdown("**SQL or sources**")
-        st.code(result["sql_or_sources"])
+            display = display_answer(result["answer"], result["mode"])
+            if display["kind"] == "metric":
+                st.metric(display["label"], display["value"])
+            elif display["kind"] == "table":
+                st.dataframe(display["rows"], width="stretch", hide_index=True)
+            elif display["kind"] == "empty":
+                st.info("No rows matched the filters in this question.")
+            else:
+                st.write(display["text"])
+        if result["metric_definition"]:
+            st.caption(f"Definition: {result['metric_definition']}")
+        with st.expander("View SQL or sources"):
+            st.code(result["sql_or_sources"], language="sql" if result["sql_or_sources"].lstrip().upper().startswith(("SELECT", "WITH")) else None)
 
 with recommendation_tab:
     st.subheader("Recommendation and human review")
