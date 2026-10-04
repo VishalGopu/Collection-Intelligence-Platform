@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Protocol
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 
@@ -56,7 +57,11 @@ class OpenAIResponsesPlanner:
         self.model = model
         self.fallback_model = fallback_model
         self.provider = provider
-        self.endpoint = endpoint or ("https://api.groq.com/openai/v1/chat/completions" if provider == "groq" else "https://api.openai.com/v1/responses")
+        self.endpoint = endpoint or (
+            "https://api.groq.com/openai/v1/chat/completions" if provider == "groq" else
+            "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+            if provider == "gemini" else "https://api.openai.com/v1/responses"
+        )
         self.cache_path = Path(cache_path)
         self.cache_enabled = cache_enabled
         self.max_attempts = max_attempts
@@ -137,6 +142,11 @@ class OpenAIResponsesPlanner:
                 "temperature": 0,
                 "response_format": {"type": "json_object"},
             })
+        elif self.provider == "gemini":
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0, "responseMimeType": "application/json"},
+            }
         else:
             payload.update({"input": prompt, "text": {
                 "format": {
@@ -157,13 +167,16 @@ class OpenAIResponsesPlanner:
         last_error: Exception | None = None
         models = [self.model] + ([self.fallback_model] if self.fallback_model and self.fallback_model != self.model else [])
         for model in models:
-          payload["model"] = model
+          if self.provider != "gemini":
+              payload["model"] = model
           body = json.dumps(payload).encode()
           for attempt in range(1, self.max_attempts + 1):
             request = Request(
-                self.endpoint,
+                self.endpoint.format(model=quote(model, safe="-_.")) if self.provider == "gemini" else self.endpoint,
                 data=body,
-                headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+                headers=({"X-goog-api-key": self.api_key, "Content-Type": "application/json"}
+                         if self.provider == "gemini" else
+                         {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}),
                 method="POST",
             )
             try:
@@ -265,6 +278,12 @@ class OpenAIResponsesPlanner:
             content = choices[0].get("message", {}).get("content")
             if isinstance(content, str):
                 return content
+        candidates = result.get("candidates", [])
+        if candidates:
+            parts = candidates[0].get("content", {}).get("parts", [])
+            text_parts = [part["text"] for part in parts if isinstance(part.get("text"), str)]
+            if text_parts:
+                return "".join(text_parts)
         for item in result.get("output", []):
             for content in item.get("content", []):
                 if isinstance(content.get("text"), str):

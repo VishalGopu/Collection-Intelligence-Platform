@@ -5,6 +5,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
 from src.insights.llm import OpenAIResponsesPlanner
+from src.insights.engine import InsightEngine
 
 
 class FakeResponse:
@@ -159,3 +160,43 @@ def test_groq_retry_after_is_respected_without_backup(tmp_path) -> None:
     )
     assert planner.plan("How many cases?", "collections_cases(case_id)").sql.startswith("SELECT")
     assert sleeps == [2.5]
+
+
+def test_gemini_request_uses_generate_content_and_json_response(tmp_path) -> None:
+    requests = []
+
+    def opener(request, **kwargs):
+        requests.append(request)
+        return FakeResponse({"candidates": [{"content": {"parts": [{
+            "text": json.dumps({"sql": "SELECT count(*) FROM collections_cases", "metric_id": None})
+        }]}}]})
+
+    planner = OpenAIResponsesPlanner(
+        "test-gemini-key", "gemini-flash-latest", provider="gemini",
+        cache_path=tmp_path / "cache.json", opener=opener,
+    )
+    plan = planner.plan("How many cases?", "collections_cases(case_id)")
+    assert plan.sql == "SELECT count(*) FROM collections_cases"
+    assert planner.plan("How many cases?", "collections_cases(case_id)") == plan
+    assert len(requests) == 1
+    assert requests[0].full_url.endswith("/models/gemini-flash-latest:generateContent")
+    assert requests[0].get_header("X-goog-api-key") == "test-gemini-key"
+    assert requests[0].get_header("Authorization") is None
+    body = json.loads(requests[0].data)
+    assert body["contents"][0]["parts"][0]["text"].startswith("You are a read-only DuckDB SQL planner")
+    assert body["generationConfig"]["responseMimeType"] == "application/json"
+    assert "model" not in body
+
+
+def test_provider_is_explicitly_selected_from_environment(monkeypatch) -> None:
+    monkeypatch.setattr("src.insights.engine.load_dotenv", lambda: None)
+    monkeypatch.setenv("GEMINI_API_KEY", "gemini-secret")
+    monkeypatch.setenv("GROQ_API_KEY", "groq-secret")
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-secret")
+    for provider, expected in (("gemini", "gemini-secret"),
+                               ("groq", "groq-secret"),
+                               ("openai", "openai-secret")):
+        monkeypatch.setenv("INSIGHTS_LLM_PROVIDER", provider)
+        planner = InsightEngine._planner_from_environment()
+        assert planner.provider == provider
+        assert planner.api_key == expected

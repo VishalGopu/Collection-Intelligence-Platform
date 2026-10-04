@@ -124,15 +124,26 @@ class InsightEngine:
     @staticmethod
     def _planner_from_environment() -> SQLPlanner | None:
         load_dotenv()
-        openai_key = os.environ.get("OPENAI_API_KEY")
-        groq_key = os.environ.get("GROQ_API_KEY") or os.environ.get("grok_api_key")
-        api_key = openai_key or groq_key
+        provider = os.environ.get("INSIGHTS_LLM_PROVIDER", "").strip().lower()
+        if not provider:
+            provider = "openai" if os.environ.get("OPENAI_API_KEY") else "groq"
+        if provider not in {"gemini", "groq", "openai"}:
+            raise ValueError("INSIGHTS_LLM_PROVIDER must be gemini, groq, or openai")
+        keys = {
+            "gemini": os.environ.get("GEMINI_API_KEY"),
+            "groq": os.environ.get("GROQ_API_KEY") or os.environ.get("grok_api_key"),
+            "openai": os.environ.get("OPENAI_API_KEY"),
+        }
         # Be tolerant of a common local `.env` typo: `KEY==value`.
-        if api_key:
-            api_key = api_key.lstrip("=").strip()
+        api_key = (keys[provider] or "").lstrip("=").strip()
         if not api_key:
             return None
-        if not openai_key:
+        if provider == "gemini":
+            return OpenAIResponsesPlanner(
+                api_key=api_key, model=os.environ.get("GEMINI_MODEL", "gemini-flash-latest"),
+                provider="gemini",
+            )
+        if provider == "groq":
             return OpenAIResponsesPlanner(
                 api_key=api_key, model=os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b"),
                 fallback_model=os.environ.get("GROQ_FALLBACK_MODEL", "openai/gpt-oss-20b"), provider="groq",

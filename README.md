@@ -80,12 +80,13 @@ The [implemented architecture diagram](docs/architecture_built.png) shows the bu
 | Managed AI decision service and online feature store | Local point-in-time feature helpers feed a LightGBM promise-kept model with SHAP reasons. A policy gate ranks allowed actions; a typed reviewer ID approves, modifies, or rejects a proposal into SQLite. No customer contact is executed. |
 | Broad use of customer profile signals | Protected fields are excluded from published C360 outputs and model ranking. Vulnerability flags route only to specialist review. Offline text rules from pre-scoring notes and customer transcript turns are context only. |
 
-The optional SQL-planning provider is Groq (`openai/gpt-oss-120b` by default with `GROQ_API_KEY`) or OpenAI (`gpt-5-mini` by default with `OPENAI_API_KEY`); OpenAI takes precedence if both are configured. The hero smoke test used deterministic Layer 2 routes, so it did not call either provider. The promise model runs locally with LightGBM.
+Unknown safe analytics questions can use Gemini, Groq, or OpenAI for SQL planning. Put the selected key in the ignored `.env` and set `INSIGHTS_LLM_PROVIDER=gemini`, `groq`, or `openai`. Gemini uses `GEMINI_API_KEY` and defaults to `GEMINI_MODEL=gemini-flash-latest`; Groq uses `GROQ_API_KEY` and defaults to `GROQ_MODEL=openai/gpt-oss-120b` with its existing backup model. OpenAI remains available through `OPENAI_API_KEY`. If no provider is selected, the old OpenAI-then-Groq precedence remains. The planner's output still goes through SQLGlot validation and read-only DuckDB execution. The hero smoke test uses deterministic routes and calls no provider. The promise model runs locally with LightGBM.
 
 ## AI tools used
 
 - Groq API (`openai/gpt-oss-120b`, fallback `openai/gpt-oss-20b`): SQL planning only for new Layer 2 analytics questions. The application validates and runs the SQL read-only in DuckDB, then builds answers solely from query results. The 34-question uncached first run had 33 non-error executions, 10 retries, and 172 seconds of rate-limit waits; one request failed before SQL execution. The text features use no API.
 - OpenAI API: optional alternative provider for the same SQL-planning-only path; not used for the Groq live run.
+- Gemini API (`gemini-flash-latest` alias): optional SQL-planning provider through `generateContent`; selected by `.env` on this laptop. A live planner call completed in 2.6 seconds without retries. An end-to-end uncached Ask call took 29.9 seconds, mostly from loading and querying the local release rather than model inference. The alias can change the underlying model over time; set `GEMINI_MODEL` to a fixed version for reproducible later runs.
 - LightGBM and SHAP: local promise-kept estimation and explanation for decision proposals.
 - Codex: implementation, test creation, and development workflow assistance.
 
