@@ -580,9 +580,13 @@ def render_decision() -> None:
 
 def render_worklist() -> None:
     page_header("Human review queue", "Priority queue",
-                "Linked open promises ranked by estimated break risk. This is a review queue, not an action list.")
-    st.caption("The ranking uses evidence available before each promise. Policy is rechecked for any proposed action.")
-    if st.button("Load worklist", key="worklist_submit", type="primary"):
+                "Open promises that may need attention from the collections team.")
+    with st.container(border=True):
+        st.markdown("**How prioritisation works**")
+        st.caption("Open Promise-to-Pay records are ranked by estimated break risk using only "
+                   "information available before each promise was made. Higher-risk cases appear "
+                   "first for human review; the score does not automatically trigger customer action.")
+    if st.button("Refresh priority queue", key="worklist_submit", type="primary"):
         try:
             st.session_state.worklist_rows = worklist(20)
         except Exception as error:
@@ -603,11 +607,11 @@ def render_worklist() -> None:
         st.dataframe([{"Promise ID": row["ptp_id"],
                        "Golden customer ID": row["customer_id"],
                        "Case ID": row["case_id"],
-                       "Break risk": f"{row['probability_break']:.1%}",
-                       "Top model reason": row["top_reason"]} for row in rows],
+                       "Estimated break risk": f"{row['probability_break']:.1%}",
+                       "Main risk driver": row["top_reason"]} for row in rows],
                      width="stretch", hide_index=True, key="worklist_table",
                      on_select=select_worklist_customer, selection_mode="single-row")
-        st.caption("A high risk score does not authorize contact. Review the customer and policy checks first.")
+        st.caption("Final customer actions are subject to policy checks and human review.")
 
 
 st.set_page_config(page_title="CIBC Collections | Concept demo", page_icon="🏦",

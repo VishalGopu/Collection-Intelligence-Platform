@@ -42,9 +42,9 @@ Example customer: **`G-883e676faa7837d10aa7`**. This is a useful example because
 
 ## 4. Priority queue: why this customer is first
 
-**Do:** Open **Priority queue** and click **Load worklist**. Point to the first row for `G-883e676faa7837d10aa7`, promise `PTP-3511285`, case `CS-2026-123687`.
+**Do:** Open **Priority queue**, read the **How prioritisation works** card, and click **Refresh priority queue**. Point to the first row for `G-883e676faa7837d10aa7`, promise `PTP-3511285`, case `CS-2026-123687`.
 
-**Say:** “This queue contains **linked open promises**, sorted by the model’s estimated chance of breaking the promise. This promise has **85.2% estimated break risk** and appears first in the top 20. **Top model reason** says ‘days past due’. That means the model associates the customer’s arrears age with a lower chance of keeping the promise. The score is a review priority, **not** a contact instruction or a prediction that this specific person will definitely miss payment.”
+**Say:** “This queue contains **linked open promises**, sorted by the model’s estimated chance of breaking the promise. This promise has **85.2% estimated break risk** and appears first in the top 20. **Main risk driver** says ‘days past due’. That means the model associates the customer’s arrears age with a lower chance of keeping the promise. The score is a review priority, **not** a contact instruction or a prediction that this specific person will definitely miss payment.”
 
 **Do:** Click the first row. It opens the customer in **Customer 360**. If selecting the row does not respond in your browser, open Customer 360 from the top menu and paste `G-883e676faa7837d10aa7` into **Golden customer ID**.
 

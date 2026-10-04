@@ -32,7 +32,7 @@ These three exact prompts use governed routes and do not need an external LLM. N
 
 ### 2. Find work that deserves review (about 45 seconds)
 
-Open **Priority queue** and click **Load worklist**. It shows 20 linked, open promises ordered by predicted break risk, with a top model reason. Explain that it helps the manager decide what to review first; it is **not** a list of approved actions. The probability is a model estimate, and a high score cannot override contact policy or specialist routing. Selecting a row opens that customer in Customer 360.
+Open **Priority queue**, read **How prioritisation works**, and click **Refresh priority queue**. It shows 20 linked, open promises ordered by **Estimated break risk**, with a **Main risk driver**. Explain that it helps the manager decide what to review first; it is **not** a list of approved actions. The probability is a model estimate, and a high score cannot override contact policy or specialist routing. Selecting a row opens that customer in Customer 360.
 
 For a reproducible handoff, use customer `G-39c6b287f70371cd9fc6`. In **Customer 360**, expand **Browse linked customers**, keep the default **Open cases and promises** filter, search `39c6b287f70371cd9fc6`, and click its row. The browser also offers open cases, any promise, broken promises, open promises, and all linked customers. It shows ten rows per page and the relevant counts.
 
