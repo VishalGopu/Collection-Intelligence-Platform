@@ -41,7 +41,8 @@ INDEXES = {
 }
 
 
-def build(data_dir: Path = DATASET, cache_path: Path = CACHE) -> Path:
+def build(data_dir: Path = DATASET, cache_path: Path = CACHE,
+          c360_root: Path = C360) -> Path:
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     temporary = cache_path.with_name(cache_path.stem + ".building.duckdb")
     if temporary.exists():
@@ -59,6 +60,27 @@ def build(data_dir: Path = DATASET, cache_path: Path = CACHE) -> Path:
                         f"read_csv({_path(source)}, header=true, all_varchar=true)")
             con.execute(f"CREATE INDEX idx_{table}_customer ON {table} ({INDEXES[table]})")
             print(f"Cached {table}: {con.execute(f'SELECT count(*) FROM {table}').fetchone()[0]:,} rows", flush=True)
+        crosswalk = Path(c360_root) / "identity_crosswalk.parquet"
+        if not crosswalk.is_file():
+            raise FileNotFoundError(crosswalk)
+        con.execute(f"CREATE VIEW linked_ids AS SELECT source_system, source_customer_id, "
+                    f"golden_customer_id FROM read_parquet({_path(crosswalk)}) "
+                    "WHERE link_status = 'linked' AND source_system IN ('crm', 'collections')")
+        con.execute("""CREATE TABLE customer_activity AS
+            SELECT crm.golden_customer_id,
+                   count(*) AS promise_count,
+                   count(*) FILTER (WHERE lower(p.ptp_status) = 'broken') AS broken_promise_count,
+                   count(*) FILTER (WHERE lower(p.ptp_status) = 'open') AS open_promise_count
+            FROM promises_to_pay p
+            JOIN collections_cases c ON c.case_id = p.case_id
+            JOIN linked_ids crm ON crm.source_system = 'crm'
+                AND crm.source_customer_id = p.crm_customer_id
+            JOIN linked_ids coll ON coll.source_system = 'collections'
+                AND coll.source_customer_id = c.coll_customer_ref
+                AND coll.golden_customer_id = crm.golden_customer_id
+            GROUP BY crm.golden_customer_id""")
+        con.execute("CREATE UNIQUE INDEX idx_activity_customer ON customer_activity (golden_customer_id)")
+        print(f"Cached promise activity: {con.execute('SELECT count(*) FROM customer_activity').fetchone()[0]:,} customers", flush=True)
         con.execute("CHECKPOINT")
     finally:
         con.close()

@@ -21,9 +21,9 @@ def cached_customer(golden_id: str) -> dict:
 
 @st.cache_data(show_spinner="Searching linked C360 customers…")
 def cached_customer_page(search: str, after_id: str | None,
-                         only_open_cases: bool) -> dict:
+                         activity_filter: str) -> dict:
     return browse_customers(search, after_id=after_id,
-                            only_open_cases=only_open_cases)
+                            activity_filter=activity_filter)
 
 
 st.set_page_config(page_title="Collection Intelligence", layout="wide")
@@ -58,11 +58,21 @@ with customer_tab:
     with st.expander("Browse all linked customers", expanded=False):
         st.text_input("Search golden ID or fragment", key="catalog_search",
                       on_change=reset_catalog)
+        filter_labels = {
+            "Open cases and promises": "open_cases_and_promises",
+            "Open cases": "open_cases",
+            "Any promise": "any_promise",
+            "Broken promises": "broken_promise",
+            "Open promises": "open_promise",
+            "All linked customers": "all",
+        }
+        st.selectbox("Show customers with", list(filter_labels), key="catalog_filter",
+                     on_change=reset_catalog)
         try:
             page_data = cached_customer_page(
                 st.session_state.catalog_search,
                 st.session_state.catalog_cursors[st.session_state.catalog_page],
-                False,
+                filter_labels[st.session_state.catalog_filter],
             )
         except (FileNotFoundError, ValueError) as error:
             st.error(str(error))
@@ -72,7 +82,8 @@ with customer_tab:
             page_rows = page_data["rows"]
             if page_rows:
                 table_key = (f"catalog_rows_{st.session_state.catalog_page}_"
-                             f"{st.session_state.catalog_search}")
+                             f"{st.session_state.catalog_search}_"
+                             f"{st.session_state.catalog_filter}")
 
                 def select_catalog_customer() -> None:
                     selected_rows = st.session_state[table_key]["selection"]["rows"]
@@ -82,8 +93,10 @@ with customer_tab:
                 st.dataframe([{
                     "Golden customer ID": row["golden_customer_id"],
                     "Open cases": row["open_case_count"],
+                    "Promises": row["promise_count"],
+                    "Broken": row["broken_promise_count"],
+                    "Open promises": row["open_promise_count"],
                     "Highest DPD": row["max_current_dpd"],
-                    "Overdue (CAD)": row["total_overdue_cad"],
                 } for row in page_rows], width="stretch", hide_index=True,
                              height=max(75, 35 * (len(page_rows) + 1)),
                              key=table_key, on_select=select_catalog_customer,
