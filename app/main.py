@@ -42,8 +42,21 @@ with customer_tab:
     def choose_demo() -> None:
         st.session_state.golden_id = st.session_state.demo_choice
 
+    def step_demo(offset: int) -> None:
+        current = st.session_state.get("demo_choice", HERO_ID)
+        position = DEMO_IDS.index(current) if current in DEMO_IDS else 0
+        selected = DEMO_IDS[(position + offset) % len(DEMO_IDS)]
+        st.session_state.demo_choice = selected
+        st.session_state.golden_id = selected
+
     st.selectbox("Demo customer", DEMO_IDS, index=0, key="demo_choice",
                  on_change=choose_demo)
+    previous_demo, next_demo = st.columns(2)
+    previous_demo.button("Previous demo customer", key="demo_previous",
+                         on_click=step_demo, args=(-1,), use_container_width=True)
+    next_demo.button("Next demo customer", key="demo_next",
+                     on_click=step_demo, args=(1,), use_container_width=True)
+    st.caption("Six demo IDs are available. You can also type or paste any published golden ID below.")
     golden_id = st.text_input("Golden customer ID", key="golden_id",
                               help="Select a demo customer or paste any published golden ID.").strip()
     if golden_id:
