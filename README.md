@@ -36,12 +36,12 @@ py -3 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m src.c360.build
 .\.venv\Scripts\python.exe -m app.prepare_customer_data
-.\.venv\Scripts\python.exe -m pytest tests -q
-.\.venv\Scripts\python.exe -m app.smoke
 .\.venv\Scripts\python.exe -m src.features.training
 .\.venv\Scripts\python.exe -m src.features.candidates --base local_artifacts/features/open_promise_features.parquet --output local_artifacts/features/open_promise_candidates.parquet
 .\.venv\Scripts\python.exe -m src.features.text_rules
 .\.venv\Scripts\python.exe -m src.features.text_data
+.\.venv\Scripts\python.exe -m pytest tests -q
+.\.venv\Scripts\python.exe -m app.smoke
 .\.venv\Scripts\python.exe -m streamlit run app/main.py
 ```
 
@@ -54,12 +54,12 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python -m src.c360.build
 .venv/bin/python -m app.prepare_customer_data
-.venv/bin/python -m pytest tests -q
-.venv/bin/python -m app.smoke
 .venv/bin/python -m src.features.training
 .venv/bin/python -m src.features.candidates --base local_artifacts/features/open_promise_features.parquet --output local_artifacts/features/open_promise_candidates.parquet
 .venv/bin/python -m src.features.text_rules
 .venv/bin/python -m src.features.text_data
+.venv/bin/python -m pytest tests -q
+.venv/bin/python -m app.smoke
 .venv/bin/python -m streamlit run app/main.py
 ```
 
@@ -69,7 +69,7 @@ For the official benchmark output, run `python -m src.insights.submission --ques
 
 **Browse all linked customers** searches and pages through the full published C360 catalog (1,001,258 linked golden IDs in this release), 10 at a time, without loading all IDs into Streamlit. The activity filter defaults to customers with both open cases and promises; switch it to open cases, any promise, broken promises, open promises, or all linked customers. The row shows open-case and linked promise counts. Click a row to make it the selected customer. Rebuild the local customer-page cache with `python -m app.prepare_customer_data` after updating the data or C360 crosswalk.
 
-`app.prepare_customer_data` builds an optional, ignored DuckDB cache of only the Customer page's approved source columns, with lookup indexes. Build it once after the C360 output; the app uses it when current and falls back to the raw release otherwise. On this laptop, the hero's uncached customer load took 43.0 seconds and the indexed load took 1.57 seconds; the second customer's load fell from 48.0 to 0.85 seconds. The cache build took about 25 seconds and uses a 1 GB DuckDB memory limit.
+`app.prepare_customer_data` builds an ignored DuckDB cache of only the Customer page's approved source columns, with lookup indexes. Build it once after the C360 output; the catalog browser requires it, while an individual customer lookup can fall back to the raw release. On this laptop, the hero's uncached customer load took 43.0 seconds and the indexed load took 1.57 seconds; the second customer's load fell from 48.0 to 0.85 seconds. The cache build took about 25 seconds and uses a 1 GB DuckDB memory limit.
 
 The [implemented architecture diagram](docs/architecture_built.png) shows the built components, AI use, and human review. [App interfaces](app/INTERFACES.md) describe the current integration; the [manager walkthrough](docs/collections_manager_walkthrough.md) gives the verified live flow.
 
@@ -80,7 +80,7 @@ The [implemented architecture diagram](docs/architecture_built.png) shows the bu
 | Dagster, dbt and Great Expectations for the data product | One reproducible Python/DuckDB batch creates curated and golden Parquet files, with publication quality gates and a 31-table profile. |
 | Splink-style probabilistic identity matching and steward workflow | Rule-based matching publishes a link at confidence ≥0.95 only with a ≥0.05 lead over the next candidate and no conflicting profile. Ambiguous links remain `review_pending`; there is no steward UI or calibrated match probability. |
 | Vector document search and an agent-style Q&A planner | Document answers use governed source IDs and section mappings; transcript facts use text patterns. Released questions use deterministic routes. Unknown safe analytics can use an optional LLM SQL planner, validated with SQLGlot before read-only DuckDB execution. There is no vector index. |
-| Next.js application | Streamlit has a demo sign-in, portfolio dashboard, dark sidebar, priority queue, Customer 360, Ask, and Decision review. Ask has explicit All Collections / This customer scope; linked customer SQL supports only narrow certified routes and refuses unsupported filters. |
+| Next.js application | Streamlit has a CIBC-themed concept UI with demo sign-in, portfolio dashboard, priority queue, Customer 360, Ask, and Decision review. Ask has explicit All Collections / This customer scope; linked customer SQL supports only narrow certified routes and refuses unsupported filters. |
 | Managed AI decision service and online feature store | Local point-in-time feature helpers feed a LightGBM promise-kept model with SHAP reasons. A policy gate ranks allowed actions; a typed reviewer ID approves, modifies, or rejects a proposal into SQLite. No customer contact is executed. |
 | Broad use of customer profile signals | Protected fields are excluded from published C360 outputs and model ranking. Vulnerability flags route only to specialist review. Offline text rules from pre-scoring notes and customer transcript turns are context only. |
 
