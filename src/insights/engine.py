@@ -194,7 +194,10 @@ class InsightEngine:
             return AnswerCard(question_id or "AD-HOC", question,
                               "Select a golden customer to answer this customer-specific question.",
                               "customer scope required", True, "refusal")
-        external_id = question_id if question_id and question_id not in self._questions else None
+        external_id = (question_id if question_id and
+                       (question_id not in self._questions or
+                        self._normalize_question(question) != self._normalize_question(self._questions[question_id]))
+                       else None)
         qid = (question_id if question_id in self._questions and
                self._normalize_question(question) == self._normalize_question(self._questions[question_id])
                else matched)

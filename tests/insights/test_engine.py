@@ -204,7 +204,9 @@ def test_changed_date_number_and_status_never_reuse_saved_route(fixture_root: Pa
         "Show 10 closed cases created after 1 January 2030",
     ):
         assert engine._match_question(changed) is None
-        assert engine.answer(changed, "Q").question_id != "Q"
+        card = engine.answer(changed, "Q")
+        assert card.question_id == "Q"  # Preserve the submitted ID, not its stale route.
+        assert card.refused
 
 
 def test_scoped_filter_is_refused_if_route_cannot_preserve_it(fixture_root: Path, tmp_path: Path) -> None:
