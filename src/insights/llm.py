@@ -78,26 +78,28 @@ class OpenAIResponsesPlanner:
     @staticmethod
     def _curl_open(request: Request, timeout: int):
         """Use curl CLI for Groq; its edge rejects Python HTTP clients here."""
-        with tempfile.NamedTemporaryFile(mode="wb", prefix="groq-request-", suffix=".json") as body, tempfile.NamedTemporaryFile(mode="w+b", prefix="groq-headers-") as headers:
-            body.write(request.data)
-            body.flush()
+        # Windows locks NamedTemporaryFile while Python holds it open, so curl
+        # cannot read the request body or write the response headers (exit 26).
+        with tempfile.TemporaryDirectory(prefix="groq-request-") as directory:
+            body = Path(directory) / "body.json"
+            headers = Path(directory) / "headers.txt"
+            body.write_bytes(request.data)
             config = "\n".join([
                 f"url = {json.dumps(request.full_url)}",
                 *[f"header = {json.dumps(f'{name}: {value}')}" for name, value in request.header_items()],
-                f"data-binary = {json.dumps('@' + body.name)}",
+                f"data-binary = {json.dumps('@' + str(body))}",
                 "silent",
                 "show-error",
                 f"max-time = {timeout}",
             ]) + "\n"
             try:
                 result = subprocess.run(
-                    ["curl", "--config", "-", "--dump-header", headers.name, "--write-out", "\n%{http_code}"],
+                    ["curl", "--config", "-", "--dump-header", str(headers), "--write-out", "\n%{http_code}"],
                     input=config.encode(), capture_output=True, timeout=timeout + 5, check=True,
                 )
             except (subprocess.SubprocessError, OSError) as exc:
                 raise URLError(str(exc)) from exc
-            headers.seek(0)
-            header_text = headers.read().decode("latin-1")
+            header_text = headers.read_text(encoding="latin-1")
         payload, _, status_text = result.stdout.rpartition(b"\n")
         try:
             status = int(status_text)

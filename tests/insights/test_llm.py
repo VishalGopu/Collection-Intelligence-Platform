@@ -1,6 +1,8 @@
 import io
 import json
+import subprocess
 from urllib.error import HTTPError, URLError
+from urllib.request import Request
 
 from src.insights.llm import OpenAIResponsesPlanner
 
@@ -22,6 +24,24 @@ class FakeResponse:
 def response(sql: str) -> FakeResponse:
     plan = json.dumps({"sql": sql, "metric_id": None})
     return FakeResponse({"output_text": plan})
+
+
+def test_groq_curl_files_are_accessible_to_child_process(monkeypatch) -> None:
+    def fake_run(command, *, input, capture_output, timeout, check):
+        config = input.decode()
+        body_line = next(line for line in config.splitlines() if line.startswith("data-binary = "))
+        body_path = json.loads(body_line.split(" = ", 1)[1])[1:]
+        with open(body_path, "rb") as body:
+            assert json.load(body) == {"test": True}
+        with open(command[command.index("--dump-header") + 1], "wb") as headers:
+            headers.write(b"HTTP/1.1 200 OK\r\n\r\n")
+        return subprocess.CompletedProcess(command, 0, b'{"ok":true}\n200', b"")
+
+    monkeypatch.setattr("src.insights.llm.subprocess.run", fake_run)
+    request = Request("https://api.groq.com/openai/v1/chat/completions",
+                      data=b'{"test":true}', headers={"Authorization": "Bearer test-key"})
+    with OpenAIResponsesPlanner._curl_open(request, timeout=5) as result:
+        assert json.loads(result.read()) == {"ok": True}
 
 
 def test_response_cache_avoids_second_api_call(tmp_path) -> None:
