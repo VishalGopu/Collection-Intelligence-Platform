@@ -203,7 +203,8 @@ class InsightEngine:
             if refusal:
                 card = AnswerCard("AD-HOC", question, refusal, "policy guardrail", True, "refusal")
             else:
-                card = self._answer_cases_after(question) or self._answer_with_llm(question)
+                card = (self._answer_open_case_top(question) or
+                        self._answer_cases_after(question) or self._answer_with_llm(question))
             return replace(card, question_id=external_id) if external_id else card
         canonical = self._questions.get(qid, question)
         if qid in REFUSALS:
@@ -251,6 +252,36 @@ class InsightEngine:
                "ORDER BY case_open_date, case_id LIMIT 200")
         card = self._answer_sql("AD-HOC", question, sql)
         return replace(card, mode="empty", answer="No rows matched") if card.answer == "case_id,case_open_date,case_status" else card
+
+    def _answer_open_case_top(self, question: str) -> AnswerCard | None:
+        normalized = re.sub(r"\s+", " ", question.strip())
+        match = re.fullmatch(
+            r"how many open cases are there,? and list (?:the )?top (\d+)(?: open cases| cases)?[?.!]?",
+            normalized, re.I,
+        )
+        if not match:
+            return None
+        limit = int(match.group(1))
+        if not 1 <= limit <= MAX_RESULT_ROWS:
+            return self._could_not_answer(question, f"top-list size must be between 1 and {MAX_RESULT_ROWS}")
+        sql = (
+            "WITH open_cases AS (SELECT case_id, case_open_date, current_dpd, total_overdue, "
+            "primary_product, queue FROM collections_cases WHERE case_status = 'open'), "
+            "totals AS (SELECT count(*) AS total_open_cases FROM open_cases), "
+            "ranked AS (SELECT row_number() OVER (ORDER BY current_dpd DESC NULLS LAST, "
+            "total_overdue DESC NULLS LAST, case_open_date, case_id) AS rank_by_dpd, "
+            "case_open_date, current_dpd, total_overdue, primary_product, queue FROM open_cases) "
+            "SELECT t.total_open_cases, r.rank_by_dpd AS \"Rank\", "
+            "r.current_dpd AS \"Days past due\", round(r.total_overdue, 2) AS \"Overdue (CAD)\", "
+            "r.primary_product AS \"Product\", r.queue AS \"Queue\", "
+            "r.case_open_date AS \"Opened\" FROM totals t "
+            f"LEFT JOIN ranked r ON r.rank_by_dpd <= {limit} ORDER BY r.rank_by_dpd"
+        )
+        card = self._answer_sql("AD-HOC", question, sql)
+        return replace(card, metric_definition=(
+            "Open cases have case_status='open'. Top means highest current days past due, "
+            "then highest overdue amount; case ID only breaks ties and is not displayed."
+        ))
 
     def _answer_scoped(self, question: str, scope: str, question_id: str | None) -> AnswerCard:
         if not re.fullmatch(r"G-[0-9a-f]{20}", scope):

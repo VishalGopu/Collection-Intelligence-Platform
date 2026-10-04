@@ -160,6 +160,30 @@ def test_quoted_case_date_question_keeps_certified_route(
     assert "2030-01-01" in card.sql_or_sources
 
 
+def test_open_case_count_with_top_list_has_stated_rank_and_no_output_ids(fixture_root: Path) -> None:
+    engine = bare_engine(fixture_root)
+    engine.connection.execute("""CREATE TABLE collections_cases(
+        case_id VARCHAR, case_open_date DATE, case_status VARCHAR, current_dpd INTEGER,
+        total_overdue DOUBLE, primary_product VARCHAR, queue VARCHAR)""")
+    engine.connection.execute("""INSERT INTO collections_cases VALUES
+        ('CS-2026-1', DATE '2026-01-01', 'open', 30, 100, 'card', 'early'),
+        ('CS-2026-2', DATE '2026-01-02', 'open', 90, 300, 'loan', 'late'),
+        ('CS-2026-3', DATE '2026-01-03', 'open', 90, 200, 'card', 'late'),
+        ('CS-2026-4', DATE '2026-01-04', 'cured', 150, 900, 'card', 'late')""")
+    card = engine.answer("How many open cases are there and list top 2?")
+    lines = card.answer.splitlines()
+    assert not card.refused
+    assert len(lines) == 3
+    assert lines[0].startswith("total_open_cases,Rank,Days past due")
+    assert lines[1].startswith("3,1,90,300.0")
+    assert lines[2].startswith("3,2,90,200.0")
+    assert "case_id" not in lines[0]
+    assert "case_status = 'open'" in card.sql_or_sources
+    assert "r.rank_by_dpd <= 2" in card.sql_or_sources
+    assert "highest current days past due" in card.metric_definition
+    assert engine.answer("How many open cases are there and list top 201?").refused
+
+
 def test_changed_date_number_and_status_never_reuse_saved_route(fixture_root: Path) -> None:
     engine = bare_engine(fixture_root)
     engine._questions = {"Q": "Show 10 open cases created after 1 January 2030"}

@@ -18,3 +18,12 @@ def test_ask_table_and_prose_keep_their_meaning() -> None:
         "kind": "text", "text": "A maximum of 3 outbound calls.",
     }
     assert display_answer("No rows matched", "empty") == {"kind": "empty"}
+
+
+def test_top_list_shows_total_once_and_keeps_ranked_rows() -> None:
+    answer = "total_open_cases,Rank,Days past due\n86059,1,150\n86059,2,149"
+    assert display_answer(answer, "structured") == {
+        "kind": "table_with_total", "label": "Open cases", "value": "86,059",
+        "rows": [{"Rank": "1", "Days past due": "150"},
+                 {"Rank": "2", "Days past due": "149"}],
+    }

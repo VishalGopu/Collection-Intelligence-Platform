@@ -121,6 +121,10 @@ with ask_tab:
             display = display_answer(result["answer"], result["mode"])
             if display["kind"] == "metric":
                 st.metric(display["label"], display["value"])
+            elif display["kind"] == "table_with_total":
+                st.metric(display["label"], display["value"])
+                if display["rows"]:
+                    st.dataframe(display["rows"], width="stretch", hide_index=True)
             elif display["kind"] == "table":
                 st.dataframe(display["rows"], width="stretch", hide_index=True)
             elif display["kind"] == "empty":
