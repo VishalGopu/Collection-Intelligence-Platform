@@ -217,7 +217,10 @@ class InsightEngine:
             if refusal:
                 card = AnswerCard("AD-HOC", question, refusal, "policy guardrail", True, "refusal")
             else:
-                card = (self._answer_open_cases_by_team(question) or
+                card = (self._answer_ad_hoc_document(question) or
+                        self._answer_ad_hoc_transcript(question) or
+                        self._answer_insolvency_hold(question) or
+                        self._answer_open_cases_by_team(question) or
                         self._answer_open_case_top(question) or
                         self._answer_cases_after(question) or self._answer_with_llm(question))
             return replace(card, question_id=external_id) if external_id else card
@@ -395,12 +398,14 @@ class InsightEngine:
     @staticmethod
     def _safety_refusal(question: str) -> str | None:
         text = question.casefold()
-        protected = ("gender", "marital", "citizenship", "newcomer", "religion", "ethnic", "disability", "accent", "vulnerability")
+        protected = ("gender", "marital", "citizenship", "newcomer", "religion", "ethnic", "disability", "accent", "vulnerability", "vulnerable", "going to church")
         if any(term in text for term in protected):
             return "I cannot use or disclose protected attributes for collections profiling or prioritization."
-        if any(term in text for term in ("names", "phone numbers", "email address", "addresses")) and any(term in text for term in ("every", "all", "export")):
+        if re.search(r"\b(?:every|all|export)\b", text) and re.search(
+            r"\b(?:names?|phone numbers?|email addresses?|home addresses?|date of birth|birth dates?)\b", text
+        ):
             return "I cannot provide a bulk PII export. Ask for an approved aggregate or a single authorized case."
-        if re.search(r"\b(send|call|email|text|message)\b.*\b(customer|them|him|her)\b", text):
+        if re.search(r"^\s*(?:please\s+)?(?:send|call|email|text|message)\b.*\b(?:customer|them|him|her)\b", text):
             return "I cannot take customer action. I can provide information for authorized human review."
         if "medical advice" in text:
             return "I cannot provide medical advice. Follow the approved policy and obtain qualified review."
@@ -411,6 +416,51 @@ class InsightEngine:
         if re.search(r"\b(weather|temperature|forecast|sports score|stock price|movie)\b", text):
             return "I can only answer Maple Bank collections questions; this is outside scope."
         return None
+
+    def _answer_ad_hoc_document(self, question: str) -> AnswerCard | None:
+        """Use governed policy text for supported policy intents, never SQL over case data."""
+        text = question.casefold()
+        routes = (
+            (r"income evidence|evidence of income", "POL-COLL-004_v4.2_EN.md", "POL-COLL-004 §4.3",
+             "Income evidence is not required for programmes of 3 months or less. Term extensions and debt management plans require evidence of income and expenses."),
+            (r"fraudulent|fraud claims?", "PRC-COLL-012_v1.4_EN.md", "PRC-COLL-012 §6.1",
+             "Open a dispute, pause payment requests for the disputed amount until it is resolved, and transfer fraud claims to the fraud team."),
+            (r"complain.*(?:record|escalat)|(?:record|escalat).*complain", "POL-COLL-007_v2.0_EN.md", "POL-COLL-007 §8.1",
+             "Record any expression of dissatisfaction as a complaint the same day and escalate it to a team lead."),
+            (r"(?:hours|sundays?).*(?:call|contact)|(?:call|contact).*(?:hours|sundays?)", "POL-COLL-001_v3.0_EN.md", "POL-COLL-001 §5.1",
+             "Calls and texts are permitted from 07:00 to 21:00 in the customer's local time. Where Sunday contact is permitted, Sunday calls are limited to 13:00–17:00 local time. No collection contact is made on statutory holidays."),
+        )
+        for pattern, filename, source, answer in routes:
+            if not re.search(pattern, text):
+                continue
+            matching = list((self.root / "files" / "docs").rglob(filename))
+            if not matching or not matching[0].is_file():
+                return self._could_not_answer(question, f"policy source {source} is unavailable")
+            return AnswerCard("AD-HOC", question, answer, json.dumps([source]), mode="document")
+        return None
+
+    def _answer_ad_hoc_transcript(self, question: str) -> AnswerCard | None:
+        if re.search(r"\b(?:summari[sz]e|summary)\b.*\b(?:recorded|recent)\s+call\b.*\bCS-\d{4}-\d+\b", question, re.I):
+            return self._answer_transcript("AD-HOC", question)
+        return None
+
+    def _answer_insolvency_hold(self, question: str) -> AnswerCard | None:
+        if not re.fullmatch(
+            r"how many (?:open )?cases are on insolvency hold,? and how much is overdue on them[?.!]?",
+            question.strip(), re.I,
+        ):
+            return None
+        sql = (
+            "SELECT count(*) AS cases_on_insolvency_hold, "
+            "round(coalesce(sum(total_overdue), 0), 2) AS overdue_cad "
+            "FROM collections_cases WHERE case_status = 'insolvency_hold' "
+            "AND insolvency_hold_flag = true"
+        )
+        card = self._answer_sql("AD-HOC", question, sql)
+        return replace(card, metric_definition=(
+            "An insolvency hold is an unresolved case with case_status='insolvency_hold'; "
+            "it is not labelled case_status='open' in the source data."
+        ))
 
     def _answer_sql(self, qid: str, question: str, sql: str) -> AnswerCard:
         self._validate_sql(sql)
@@ -429,7 +479,20 @@ class InsightEngine:
         if self.llm_planner is None:
             return self._could_not_answer(question, "no LLM planner is configured")
         try:
-            plan = self.llm_planner.plan(question, getattr(self, "_catalog", None) or self._catalog_text())
+            catalog = getattr(self, "_catalog", None) or self._catalog_text()
+            try:
+                plan = self.llm_planner.plan(question, catalog)
+            except PlannerError as exc:
+                groq_key = (os.environ.get("GROQ_API_KEY") or os.environ.get("grok_api_key") or "").lstrip("=").strip()
+                if (getattr(self.llm_planner, "provider", None) != "gemini" or
+                        not groq_key or not re.search(r"HTTP (?:429|503)\b", str(exc))):
+                    raise
+                fallback = OpenAIResponsesPlanner(
+                    api_key=groq_key, model=os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b"),
+                    fallback_model=os.environ.get("GROQ_FALLBACK_MODEL", "openai/gpt-oss-20b"),
+                    provider="groq",
+                )
+                plan = fallback.plan(question, catalog)
             sql = self._validate_llm_sql(self._normalize_contact_hour_sql(question, plan.sql))
             if plan.metric_id:
                 metric = self._metrics.get(plan.metric_id)

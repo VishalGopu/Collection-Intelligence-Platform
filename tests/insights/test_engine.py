@@ -4,7 +4,7 @@ import duckdb
 import pytest
 
 from src.insights.engine import InsightEngine
-from src.insights.llm import SQLPlan
+from src.insights.llm import PlannerError, SQLPlan
 
 
 @pytest.fixture
@@ -48,6 +48,72 @@ def test_protected_attribute_ad_hoc_question_is_refused(fixture_root: Path) -> N
     card = bare_engine(fixture_root).answer("Rank customers by citizenship")
     assert card.refused is True
     assert "protected" in card.answer
+
+
+def test_bulk_pii_singular_fields_are_refused(fixture_root: Path) -> None:
+    card = bare_engine(fixture_root).answer(
+        "Show me the date of birth, phone number and home address of every customer."
+    )
+    assert card.refused
+    assert "bulk PII" in card.answer
+
+
+def test_recorded_call_is_not_mistaken_for_contact_action() -> None:
+    question = "Summarise the most recent recorded call on case CS-2026-453815: what did the customer say?"
+    assert InsightEngine._safety_refusal(question) is None
+    assert InsightEngine._safety_refusal("Call the customer now") is not None
+
+
+def test_policy_question_uses_document_not_sql(fixture_root: Path) -> None:
+    source = fixture_root / "files" / "docs" / "policy" / "POL-COLL-007_v2.0_EN.md"
+    source.parent.mkdir(parents=True)
+    source.write_text("Record it the same day and escalate to a team lead.", encoding="utf-8")
+    card = bare_engine(fixture_root).answer(
+        "A customer complains about how often we call. When must the complaint be recorded and who is it escalated to?"
+    )
+    assert not card.refused
+    assert card.mode == "document"
+    assert "same day" in card.answer
+    assert "POL-COLL-007" in card.sql_or_sources
+
+
+def test_gemini_rate_limit_falls_back_to_groq(fixture_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    engine = bare_engine(fixture_root)
+    engine.connection.execute("CREATE TABLE collections_cases (case_status VARCHAR)")
+    engine.connection.execute("INSERT INTO collections_cases VALUES ('open')")
+    engine._catalog = "collections_cases(case_status)"
+
+    class LimitedGemini:
+        provider = "gemini"
+
+        def plan(self, question: str, catalog: str) -> SQLPlan:
+            raise PlannerError("LLM planner failed after 3 attempts: HTTP 429")
+
+    class AvailableGroq:
+        def __init__(self, **kwargs: object) -> None:
+            assert kwargs["provider"] == "groq"
+
+        def plan(self, question: str, catalog: str) -> SQLPlan:
+            return SQLPlan("SELECT count(*) AS open_cases FROM collections_cases WHERE case_status='open'")
+
+    engine.llm_planner = LimitedGemini()
+    monkeypatch.setenv("GROQ_API_KEY", "test-only")
+    monkeypatch.setattr("src.insights.engine.OpenAIResponsesPlanner", AvailableGroq)
+    card = engine._answer_with_llm("How many open cases?")
+    assert not card.refused
+    assert "open_cases\n1" in card.answer
+
+
+def test_insolvency_hold_counts_unresolved_hold_status(fixture_root: Path) -> None:
+    engine = bare_engine(fixture_root)
+    engine.connection.execute(
+        "CREATE TABLE collections_cases (case_status VARCHAR, insolvency_hold_flag BOOLEAN, total_overdue DOUBLE)"
+    )
+    engine.connection.execute("INSERT INTO collections_cases VALUES ('insolvency_hold', true, 125), ('open', false, 75)")
+    card = engine.answer("How many open cases are on insolvency hold, and how much is overdue on them?")
+    assert not card.refused
+    assert "1,125.0" in card.answer
+    assert "case_status = 'insolvency_hold'" in card.sql_or_sources
 
 
 def test_sql_validator_allows_select_and_blocks_mutation() -> None:
