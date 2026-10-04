@@ -1,101 +1,68 @@
 # Collections Intelligence Platform
 
-Hackathon build for a golden customer view (C360), grounded collections questions, shared features, and an explainable Next Best Action.
+A CIBC-themed **concept demo** for collections teams, built on the synthetic Maple Bank release dated **28 September 2026**. It connects customer records, answers collections questions with visible evidence, ranks open promises for review, and proposes policy-checked next steps. It is not a CIBC production system. The CIBC mark in the app belongs to CIBC.
 
-The Streamlit interface is a **CIBC-themed concept demo** based on the supplied CIBC screenshot. Its [CIBC logo](https://www.cibc.com/content/dam/global-assets/logos/cibc-logos/no-tagline/cibc-logo-colour-142x36.svg) is from CIBC's public site; CIBC owns its marks. The app uses a synthetic Maple data release and local demo sign-in, so it must not be presented as a CIBC production system or online banking login.
+## What is implemented
 
-## Work areas
-
-| Path | Purpose |
+| Layer | Working component |
 | --- | --- |
-| `src/c360/` | Raw-to-gold pipeline, identity resolution, data quality |
-| `src/insights/` | Certified metrics, document lookup, cited answers, refusals, benchmark runner |
-| `src/features/` | Shared point-in-time feature definitions |
-| `src/decisioning/` | Policy gate, scoring, reasons, human review |
-| `app/` | Streamlit sign-in, dashboard, Customer 360, Ask, decision review, and priority queue |
-| `contracts/` | Published data interface |
-| `local_artifacts/` | Generated local files, ignored by Git |
-| `submission/` | Final artifacts to commit for judging |
+| Customer 360 | `src/c360/build.py` normalizes CRM, cards, lending, core banking, and collections records. DuckDB produces curated tables, `golden_customers.parquet`, and `identity_crosswalk.parquet`. Uncertain matches stay pending or unlinked; publication checks and a data-quality report record the counts. |
+| Ask Collections | `src/insights/engine.py` answers supported metrics with governed SQL, retrieves passages from release policy/procedure documents, and summarizes supported call transcripts. Unknown analytics can use Gemini, Groq, or OpenAI to plan read-only SQL. SQLGlot validation and constraint checks run before DuckDB executes it; the answer displays SQL or sources. The default scope is the whole portfolio. Customer scope uses linked C360 records for a limited set of certified questions. |
+| Features | `src/features/` builds dated, point-in-time structured promise features and rule-derived context from notes and transcripts. Training and scoring share approved feature definitions. Text signals are shown as context, not used as model inputs or sole grounds for adverse treatment. |
+| Decisioning | The committed LightGBM artifact predicts **P(promise kept)**. The priority queue displays **1 − P(kept)** for linked open promises and SHAP model factors. A separate rule-based policy gate blocks impermissible actions and routes hardship or vulnerability to specialist review. A specialist can approve, modify, or reject a proposal; SQLite records the review. No customer contact is sent. |
 
-Download the synthetic release from [the Maple dataset](https://huggingface.co/datasets/nuxsh/maple-collections-hackathon) and extract it under `maple_data/maple_collections_release/`. The dataset, virtual environment, text annotation cache, and generated Parquet files are not committed.
+The Streamlit app in `app/main.py` has a portfolio dashboard, Priority queue, Customer 360, Ask Collections, and Decision review. The local demo login provides `manager` and `agent` views; it is not production authentication. The manager can inspect proposals, while the agent view can record reviews.
 
-The submission artifacts are the [architecture diagram](submission/architecture_built.png), [C360 contract](contracts/golden_c360_v1.json), [data-quality report](submission/data_quality_report.md), and [benchmark answers](submission/benchmark_answers.csv).
+## Run locally
 
-## How to run
-
-For a fresh clone, work from the repository root and extract the Maple release at `maple_data/maple_collections_release/`. The dataset and generated files are local and ignored by Git. Python 3.14 is the verified version.
+Download the **core** release from the [Maple Collections dataset](https://huggingface.co/datasets/nuxsh/maple-collections-hackathon), then extract it so `maple_data/maple_collections_release/data/customers.csv` exists. The voice ZIP is optional. Run commands from the repository root using **Python 3.14**. The release and generated `local_artifacts/` are ignored by Git. The trained model is already committed, so setup does not retrain it.
 
 Windows PowerShell:
 
 ```powershell
-git clone git@github.com:VishalGopu/Collection-Intelligence-Platform.git
-cd Collection-Intelligence-Platform
-py -3 -m venv .venv
+py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m src.c360.build
-.\.venv\Scripts\python.exe -m app.prepare_customer_data
-.\.venv\Scripts\python.exe -m src.features.training
-.\.venv\Scripts\python.exe -m src.features.candidates --base local_artifacts/features/open_promise_features.parquet --output local_artifacts/features/open_promise_candidates.parquet
-.\.venv\Scripts\python.exe -m src.features.text_rules
-.\.venv\Scripts\python.exe -m src.features.text_data
+.\.venv\Scripts\python.exe -m app.bootstrap
 .\.venv\Scripts\python.exe -m pytest tests -q
-.\.venv\Scripts\python.exe -m app.smoke
 .\.venv\Scripts\python.exe -m streamlit run app/main.py
 ```
 
 Linux or macOS:
 
 ```bash
-git clone git@github.com:VishalGopu/Collection-Intelligence-Platform.git
-cd Collection-Intelligence-Platform
-python3 -m venv .venv
+python3.14 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m src.c360.build
-.venv/bin/python -m app.prepare_customer_data
-.venv/bin/python -m src.features.training
-.venv/bin/python -m src.features.candidates --base local_artifacts/features/open_promise_features.parquet --output local_artifacts/features/open_promise_candidates.parquet
-.venv/bin/python -m src.features.text_rules
-.venv/bin/python -m src.features.text_data
+.venv/bin/python -m app.bootstrap
 .venv/bin/python -m pytest tests -q
-.venv/bin/python -m app.smoke
 .venv/bin/python -m streamlit run app/main.py
 ```
 
-Download the dataset before the build command. Open the local URL printed by Streamlit. The local demo sign-in uses `manager / demo` or `agent / demo`; set `COLLECTIONS_DEMO_PASSWORD` in the ignored `.env` to replace the shared demo password. The manager opens on a portfolio dashboard; the specialist opens on the priority queue. The sidebar links to Customer 360, Ask Collections, and Decision review. Customer 360 starts with `G-39c6b287f70371cd9fc6`; browse the catalog or paste another published golden ID. Ask defaults to **All Collections**. Choose **This customer** only for a certified linked-customer route; unsupported scoped filters are refused. Every non-refused answer shows SQL or readable sources. The specialist can record approve/modify/reject reviews; the manager can inspect proposals but cannot submit a review through the UI. The smoke command writes a local test rejection to the ignored audit database. Stop the app with Ctrl+C.
+`app.bootstrap` runs the C360 build, indexed customer-page cache, structured feature builds, and offline text extraction **sequentially**. These are substantial data jobs; do not run them alongside model training or the benchmark. If the artifacts already exist, start Streamlit directly. Open the URL printed by Streamlit (normally `http://localhost:8501`). Sign in with `manager / demo` or `agent / demo`, unless `COLLECTIONS_DEMO_PASSWORD` is set in an ignored `.env` file.
 
-For the official benchmark output, run `python -m src.insights.submission --questions questions.csv --output answers.csv` from the repository root (use the venv's Python on either OS). The output columns are exactly `question_id,answer,sql_or_sources,refused`.
+Docker Compose is also available through `compose.yaml`: after placing the release locally, run `docker compose build`, `docker compose run --rm collections python -m app.bootstrap`, and `docker compose up -d collections`. Its default host URL is `http://localhost:8504`. Compose mounts the dataset, local artifacts, and submission directory; it does not bundle the release or secrets. The Python setup above is the verified primary path.
 
-**Browse all linked customers** searches and pages through the full published C360 catalog (1,001,258 linked golden IDs in this release), 10 at a time, without loading all IDs into Streamlit. The activity filter defaults to customers with both open cases and promises; switch it to open cases, any promise, broken promises, open promises, or all linked customers. The row shows open-case and linked promise counts. Click a row to make it the selected customer. Rebuild the local customer-page cache with `python -m app.prepare_customer_data` after updating the data or C360 crosswalk.
+## Follow a customer through the app
 
-`app.prepare_customer_data` builds an ignored DuckDB cache of only the Customer page's approved source columns, with lookup indexes. Build it once after the C360 output; the catalog browser requires it, while an individual customer lookup can fall back to the raw release. On this laptop, the hero's uncached customer load took 43.0 seconds and the indexed load took 1.57 seconds; the second customer's load fell from 48.0 to 0.85 seconds. The cache build took about 25 seconds and uses a 1 GB DuckDB memory limit.
+On **Priority queue**, click **Refresh priority queue**. The table ranks linked open Promise-to-Pay records by estimated break risk. For example, `PTP-3511285` is linked to `G-883e676faa7837d10aa7`; its displayed DPD and overdue amount are values **when the promise was made**, not current case totals. Select its row to open Customer 360. **Why these records are linked** shows source keys, matching evidence names, a rule score, and link status without exposing raw identity fields. The Cases, Promises, Contacts, and Accounts tabs then connect the case and account history under one golden ID.
 
-The [implemented architecture diagram](submission/architecture_built.png) shows the built components, AI use, and human review.
+Open **Decision review** for that customer and generate a proposal. Its case is in a legal status, so policy blocks ordinary outreach even though its open promise ranks high. The page shows the blocked actions, model factors, and pending audit row. Sign in as `agent` to record an approve/modify/reject review with a reason. Approval records a review; it does **not** execute contact.
 
-## What changed from the design
+On **Ask Collections**, leave **All Collections** selected and ask `How many open cases are there, and list top 10?`. The result shows the portfolio count, a ranked table, and the executed SQL. Choose **This customer** only for a supported linked-customer question. The system refuses unsafe requests and unsupported customer filters rather than silently dropping them. Policy answers display document sources; ad hoc policy retrieval reads the latest English release documents rather than storing benchmark answer text in code.
 
-| Proposed design | Built behavior |
-| --- | --- |
-| Dagster, dbt and Great Expectations for the data product | One reproducible Python/DuckDB batch creates curated and golden Parquet files, with publication quality gates and a 31-table profile. |
-| Splink-style probabilistic identity matching and steward workflow | Rule-based matching publishes a link at confidence ≥0.95 only with a ≥0.05 lead over the next candidate and no conflicting profile. Ambiguous links remain `review_pending`; there is no steward UI or calibrated match probability. |
-| Vector document search and an agent-style Q&A planner | Document answers use governed source IDs and section mappings; transcript facts use text patterns. Released questions use deterministic routes. Unknown safe analytics can use an optional LLM SQL planner, validated with SQLGlot before read-only DuckDB execution. There is no vector index. |
-| Next.js application | Streamlit has a CIBC-themed concept UI with demo sign-in, portfolio dashboard, priority queue, Customer 360, Ask, and Decision review. Ask has explicit All Collections / This customer scope; linked customer SQL supports only narrow certified routes and refuses unsupported filters. |
-| Managed AI decision service and online feature store | Local point-in-time feature helpers feed a LightGBM promise-kept model with SHAP reasons. A policy gate ranks allowed actions; a typed reviewer ID approves, modifies, or rejects a proposal into SQLite. No customer contact is executed. |
-| Broad use of customer profile signals | Protected fields are excluded from published C360 outputs and model ranking. Vulnerability flags route only to specialist review. Offline text rules from pre-scoring notes and customer transcript turns are context only. |
+For official benchmark output, run `python -m src.insights.submission --questions <questions.csv> --output <answers.csv>`. The four columns are `question_id,answer,sql_or_sources,refused`. The committed [benchmark answers](submission/benchmark_answers.csv) contain **50 generated rows**, including the 15 extra questions; **8 are refusals**. This is an execution result, not an accuracy score, and LLM answers can vary with provider availability and generated SQL.
 
-Unknown safe analytics questions can use Gemini, Groq, or OpenAI for SQL planning. Put the selected key in the ignored `.env` and set `INSIGHTS_LLM_PROVIDER=gemini`, `groq`, or `openai`. Gemini uses `GEMINI_API_KEY` and defaults to `GEMINI_MODEL=gemini-flash-latest`; Groq uses `GROQ_API_KEY` and defaults to `GROQ_MODEL=openai/gpt-oss-120b` with its existing backup model. OpenAI remains available through `OPENAI_API_KEY`. If no provider is selected, the old OpenAI-then-Groq precedence remains. The planner's output still goes through SQLGlot validation and read-only DuckDB execution. The hero smoke test uses deterministic routes and calls no provider. The promise model runs locally with LightGBM.
+## Model and responsible use
 
-## AI tools used
+The committed `src/decisioning/artifacts/promise_kept_lightgbm.joblib` uses structured, pre-promise features such as DPD and overdue balance at creation, earlier broken promises, recent contacts, card utilisation, an earlier bureau score, earlier kept rate, and days since a prior payroll credit. The feature matrix excludes protected attributes, vulnerability flags, and deposits/transactions; Canada Child Benefit deposits cannot enter it. Vulnerability and hardship indicators are **routing safeguards only**. The offline note/transcript rules add dated context, not model features.
 
-- Groq API (`openai/gpt-oss-120b`, fallback `openai/gpt-oss-20b`): SQL planning only for new Layer 2 analytics questions. The application validates and runs the SQL read-only in DuckDB, then builds answers solely from query results. The 34-question uncached first run had 33 non-error executions, 10 retries, and 172 seconds of rate-limit waits; one request failed before SQL execution. The text features use no API.
-- OpenAI API: optional alternative provider for the same SQL-planning-only path; not used for the Groq live run.
-- Gemini API (`gemini-flash-latest` alias): optional SQL-planning provider through `generateContent`; selected by `.env` on this laptop. A live planner call completed in 2.6 seconds without retries. An end-to-end uncached Ask call took 29.9 seconds, mostly from loading and querying the local release rather than model inference. The alias can change the underlying model over time; set `GEMINI_MODEL` to a fixed version for reproducible later runs.
-- LightGBM and SHAP: local promise-kept estimation and explanation for decision proposals.
-- Codex: implementation, test creation, and development workflow assistance.
+The evaluation uses a chronological split: **137,149** resolved promises in the pre-July training period and **54,657** in the July–September test period. A separate May–June validation period fits isotonic calibration; test labels are not used for calibration. On the test period, calibrated LightGBM reached **ROC-AUC 0.677** and **Brier score 0.2245**. The test break rate was **62.4%**, compared with **35.7%** in training, so the signal is modest and probability calibration can drift. Logistic regression and eligible historical `model_scores` are comparisons in the committed metrics report.
 
-## Honest limitations
+The promise model estimates what may happen. It does **not** choose a customer action. Action ranking is an explicit rule using observed right-party-contact rates by channel/time band and contact cost, with assumed weights of `0.8` and `−0.2`. Policy checks run before an action can be proposed. SHAP explains model associations, not causes or policy permission. Historical channels were selected by agents, so the backtest does not establish action uplift. A production pilot would need real authentication and authorization, monitored refreshes, policy review, and a controlled outcome comparison.
 
-The channel score assumes `0.8 × smoothed right-party-contact rate − 0.2 × normalized channel cost` using the previous 90 days and the customer's local time band. These weights are human assumptions, not learned treatment effects.
+## Submission and design changes
 
-The release is synthetic and fixed at 28 September 2026. Identity confidence is rule based, and historical crosswalk availability cannot be proven. The time-split promise test had a 62.4% break rate versus 35.7% in training, so calibration can drift. LightGBM's test ROC-AUC was 0.677 and calibrated Brier score 0.2245; the signal is modest. The calibrated model does not beat logistic regression on every ranking measure. Text-rule precision and recall were measured on 500 public labels for each source, but those examples influenced rule writing and are not independent validation. Rules can miss paraphrases and languages. The annotation cache must be built offline before the demo; missing text means unknown, never no hardship.
+The repo keeps the required [architecture diagram](submission/architecture_built.png), [Golden C360 data contract](contracts/golden_c360_v1.json), [data-quality report](submission/data_quality_report.md), and [benchmark answers](submission/benchmark_answers.csv). The contract specifies owner, schema, quality rules, allowed uses, and refresh. The small trained model and its [evaluation metrics](src/decisioning/artifacts/promise_model_metrics.json) are committed. The dataset and generated C360/features stay local.
 
-Channel and time-band weights are explicit assumptions based on observational right-party-contact rates; agents chose the historical channels. The backtest establishes neither uplift nor fair causal treatment. Protected fields are used only in a separate restricted measurement script, never in model features, action ranking, or explanations. Vulnerability flags only route to specialist review and suppress ordinary collection actions. No deposits or transactions enter the current feature matrix, so Canada Child Benefit deposits cannot enter it. The sign-in and role restriction are local demo UI controls, not production authentication or authorization; the default demo password is public and can be overridden through `.env`. Reviews use local SQLite audit records, and the app sends no customer contact. An operational pilot would need controlled comparison, consent and policy review, real authentication and authorization, monitoring, and outcome measurement before any uplift claim.
+The original design proposed orchestration tools, probabilistic identity matching, a vector document index, a Next.js interface, and a managed decision service. The built version uses reproducible Python/DuckDB batches, conservative rule-based identity links, source-document passage retrieval, Streamlit, a local LightGBM model, explicit policy rules, and SQLite audit. There is no vector index, live customer-contact execution, or production steward workflow.
+
+AI is used for the trained LightGBM prediction and optional LLM **SQL planning** for unfamiliar safe analytics questions; SHAP explains the model. Gemini is selected with `INSIGHTS_LLM_PROVIDER=gemini` and `GEMINI_API_KEY`; Groq and OpenAI are optional alternatives. When Gemini returns a 429/503 and a Groq key is configured, the planner can fall back to Groq. SQL execution, identity matching, text extraction, policy checks, action ranking, dashboard calculations, and audit writes are deterministic code. Codex assisted implementation and tests.
