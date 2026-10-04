@@ -2,6 +2,8 @@
 
 Hackathon build for a golden customer view (C360), grounded collections questions, shared features, and an explainable Next Best Action.
 
+The Streamlit interface is a **CIBC-themed concept demo** based on the supplied CIBC screenshot. Its [CIBC logo](https://www.cibc.com/content/dam/global-assets/logos/cibc-logos/no-tagline/cibc-logo-colour-142x36.svg) is from CIBC's public site; CIBC owns its marks. The app uses a synthetic Maple data release and local demo sign-in, so it must not be presented as a CIBC production system or online banking login.
+
 ## Work areas
 
 | Path | Purpose |

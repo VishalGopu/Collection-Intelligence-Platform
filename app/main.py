@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import altair as alt
 import pandas as pd
@@ -19,6 +20,7 @@ from app.theme import inject_theme
 
 
 HERO_ID = "G-39c6b287f70371cd9fc6"
+LOGO = Path(__file__).resolve().parent / "assets" / "cibc-logo.svg"
 PAGES = ("Dashboard", "Priority queue", "Customer 360", "Ask Collections", "Decision review")
 POLICY_REASON_LABELS = {
     "special_case_queue_review": "This case must be handled by its assigned specialist queue",
@@ -77,10 +79,12 @@ def page_header(label: str, title: str, description: str) -> None:
 def render_login() -> None:
     inject_theme(login=True)
     st.write("")
+    st.image(str(LOGO), width=142)
+    st.caption("Collections intelligence · Concept demo with synthetic data")
     left, right = st.columns([1.3, 1], gap="large", vertical_alignment="center")
     with left:
         st.markdown("""<div class="hero-panel">
-          <div class="eyebrow">Maple Bank · Internal collections workspace</div>
+          <div class="eyebrow">Collections intelligence · Team workspace</div>
           <h1>Clarity for every collection decision.</h1>
           <p>Understand the portfolio, verify a linked customer, and review a policy-checked next step in one place.</p>
           <div class="hero-points"><span>Customer 360</span><span>Grounded answers</span>
@@ -114,9 +118,10 @@ def render_login() -> None:
 
 def render_sidebar(user: dict) -> None:
     with st.sidebar:
-        st.markdown('<div class="brand"><span>M</span> Maple Collections</div>',
+        st.image(str(LOGO), width=142)
+        st.markdown('<div class="brand">Collections Intelligence</div>',
                     unsafe_allow_html=True)
-        st.markdown('<div class="brand-sub">Team workspace · 28 Sep 2026 snapshot</div>',
+        st.markdown('<div class="brand-sub">Concept demo · 28 Sep 2026 snapshot</div>',
                     unsafe_allow_html=True)
         st.radio("Navigate", PAGES, key="page", label_visibility="collapsed")
         st.divider()
@@ -159,7 +164,7 @@ def render_dashboard() -> None:
             st.subheader("New cases by week")
             st.caption("Cases opened during the eight weeks before the snapshot")
             chart = alt.Chart(pd.DataFrame(snapshot["weekly"])).mark_bar(
-                color="#213d5d", cornerRadiusTopLeft=5, cornerRadiusTopRight=5
+                color="#c41230", cornerRadiusTopLeft=5, cornerRadiusTopRight=5
             ).encode(x=alt.X("week:N", title=None, sort=None),
                      y=alt.Y("new_cases:Q", title="Cases"),
                      tooltip=["week:N", "new_cases:Q"]).properties(height=260)
@@ -172,7 +177,7 @@ def render_dashboard() -> None:
             chart = alt.Chart(buckets).mark_arc(innerRadius=67, outerRadius=108).encode(
                 theta=alt.Theta("cases:Q"),
                 color=alt.Color("bucket:N", sort=order, scale=alt.Scale(
-                    domain=order, range=["#3b9b73", "#e7ae42", "#ef7f58", "#bc4e5b", "#8493a8"]),
+                    domain=order, range=["#397f6b", "#e6a23c", "#db7054", "#981b42", "#87909b"]),
                     legend=alt.Legend(title=None, orient="bottom")),
                 tooltip=["bucket:N", "cases:Q"],
             ).properties(height=280)
@@ -538,7 +543,7 @@ def render_worklist() -> None:
         st.caption("A high risk score does not authorize contact. Review the customer and policy checks first.")
 
 
-st.set_page_config(page_title="Maple Collections | Team workspace", page_icon="M",
+st.set_page_config(page_title="CIBC Collections | Concept demo", page_icon="🏦",
                    layout="wide", initial_sidebar_state="expanded")
 if "auth_user" not in st.session_state:
     render_login()

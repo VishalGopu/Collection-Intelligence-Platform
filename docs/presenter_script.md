@@ -1,4 +1,4 @@
-# Read-aloud demo script: Maple Collections
+# Read-aloud demo script: CIBC-themed Collections Intelligence concept
 
 Use this script with the published **28 September 2026** synthetic-data snapshot. Allow about **12–15 minutes** for the full version, or skip the optional agent sign-in and review write for a shorter presentation. Text in **Say** is ready to read aloud; **Do** tells you what to click. Numbers below were checked against this snapshot. If the release changes, read the values on screen instead.
 
@@ -6,7 +6,7 @@ Example customer: **`G-883e676faa7837d10aa7`**. This is a useful example because
 
 ## 1. Sign in and orient the manager
 
-**Do:** Open `http://localhost:8501`. Sign in with user ID `manager` and the local demo password (`demo` unless `COLLECTIONS_DEMO_PASSWORD` is set). Point to the top menu: **Dashboard**, **Priority queue**, **Customer 360**, **Ask Collections**, **Decision review**. The sidebar contains the same pages and the selected customer ID.
+**Do:** Open `http://localhost:8501`. Sign in with user ID `manager` and the local demo password (`demo` unless `COLLECTIONS_DEMO_PASSWORD` is set). Point to the CIBC-themed header, then the top menu: **Dashboard**, **Priority queue**, **Customer 360**, **Ask Collections**, **Decision review**. The sidebar contains the same pages and the selected customer ID.
 
 **Say:** “This is the manager workspace. I can see the portfolio, ask a governed question, find a promise that needs review, and follow it into one linked customer record. The pages are reachable from the top menu even if the sidebar is closed.”
 
