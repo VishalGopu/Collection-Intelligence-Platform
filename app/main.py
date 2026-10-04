@@ -20,6 +20,28 @@ from app.theme import inject_theme
 
 HERO_ID = "G-39c6b287f70371cd9fc6"
 PAGES = ("Dashboard", "Priority queue", "Customer 360", "Ask Collections", "Decision review")
+POLICY_REASON_LABELS = {
+    "special_case_queue_review": "This case must be handled by its assigned specialist queue",
+    "channel_consent_missing_or_conflicting": "Channel consent is missing or conflicting",
+    "hold_or_identity_review_takes_precedence": "A case hold or identity review takes precedence",
+    "no_specialist_route_needed": "No hardship or vulnerability specialist route is needed",
+    "specialist_route_required": "A hardship or vulnerability specialist must review this case",
+    "no_open_case": "There is no open collection case",
+    "rolling_7_day_contact_cap": "The seven-day contact limit has been reached",
+    "outside_permitted_local_hours": "It is outside permitted local contact hours",
+    "statutory_holiday_or_calendar_unknown": "The holiday calendar has not cleared contact",
+    "cease_communication": "A cease-contact request applies",
+    "open_dispute": "An open dispute requires review",
+    "identity_not_approved": "The customer link needs review",
+}
+
+
+def action_label(action: str) -> str:
+    return action.replace("_", " ").title()
+
+
+def policy_reason(code: str) -> str:
+    return POLICY_REASON_LABELS.get(code, code.replace("_", " ").capitalize())
 
 
 @st.cache_data(show_spinner="Loading linked C360 records…")
@@ -369,9 +391,10 @@ def render_ask() -> None:
 
 def render_decision() -> None:
     page_header("Policy and human review", "Decision review",
-                "A proposal is generated only on request. It never sends customer contact.")
+                "See the next step, the policy reason, and the human review in one place.")
     selected_id = st.session_state.golden_id.strip()
-    st.caption(f"Selected customer: `{selected_id}`")
+    st.markdown(f"**Customer:** `{selected_id}`")
+    st.caption("Generating a proposal records it for review. It never sends a call, message, or email.")
     if not connected():
         st.error("The recommendation service is unavailable in this checkout.")
         return
@@ -391,35 +414,59 @@ def render_decision() -> None:
             st.error(f"Could not generate a recommendation: {error}")
     proposal = st.session_state.get("recommendation")
     if proposal and proposal.get("customer_id") == selected_id:
+        checks = proposal.get("policy_checks", {})
+        blocked = [{"Action": action_label(action),
+                    "Why": "; ".join(policy_reason(code) for code in check.get("reasons", []))}
+                   for action, check in checks.items() if not check.get("allowed")]
+        action = proposal["action"]
         with st.container(border=True):
-            st.subheader("Proposed next step")
-            st.markdown(f"### {proposal['action'].replace('_', ' ').title()}")
-            st.caption(f"Decision ID: {proposal['decision_id']} · "
-                       f"Snapshot: {proposal['data_snapshot_date']} · Status: {proposal['status']}")
+            st.subheader("Recommended next step")
+            st.markdown(f"### {action_label(action)}")
+            if action == "wait":
+                st.warning("No customer contact is proposed. Resolve the policy checks before taking any action.")
+            elif action == "specialist_review":
+                st.info("Route this case to a specialist. Ordinary collection contact is suppressed.")
+            else:
+                st.info("This is a proposal for human review, not an automatic customer contact.")
             probability = proposal.get("probabilities", {}).get("promise_kept")
             if probability is not None:
-                st.metric("Promise kept probability", f"{probability:.1%}")
-            st.markdown("**Why this proposal?**")
-            for reason_text in proposal.get("reasons", []):
-                st.write(reason_text)
+                st.metric("Estimated chance of keeping a promise", f"{probability:.1%}")
+                st.caption("Model estimate from past data. It does not decide whether contact is allowed.")
+            st.markdown("**Why?**")
+            if action == "wait" and blocked:
+                important = [code for code in ("special_case_queue_review", "specialist_route_required",
+                             "open_dispute", "cease_communication", "no_open_case")
+                             if any(code in check.get("reasons", []) for check in checks.values())]
+                st.write(policy_reason(important[0]) + "." if important else "Policy blocks ordinary contact.")
+            elif proposal.get("reasons"):
+                st.write(proposal["reasons"][0])
+            if blocked:
+                st.caption(f"{len(blocked)} action types blocked by policy. See details below.")
+        with st.expander("Model factors and text evidence"):
+            factors = proposal.get("shap_reasons", [])
+            if factors:
+                st.caption("Model associations, not causes or policy permissions.")
+                for factor in factors:
+                    direction = "lower" if factor["direction"] == "lowers" else "raise"
+                    st.write(f"{factor['label']}: {factor['value']:.2f} tends to {direction} the promise-kept score")
+            else:
+                st.write("No model factors are available for this proposal.")
             if proposal.get("text_evidence"):
-                st.caption(f"Text evidence: {proposal['text_evidence']}")
-        checks = proposal.get("policy_checks", {})
-        blocked = [{"Action": action.replace("_", " ").title(),
-                    "Why blocked": "; ".join(check.get("reasons", []))}
-                   for action, check in checks.items() if not check.get("allowed")]
-        left, right = st.columns([1.15, 1], gap="medium")
-        with left:
-            with st.container(border=True):
-                st.subheader("Blocked actions")
-                if blocked:
-                    st.dataframe(blocked, width="stretch", hide_index=True)
-                else:
-                    st.caption("No action was blocked by the current policy checks.")
-        with right:
-            with st.container(border=True):
-                st.subheader("Permitted alternatives")
-                st.dataframe(proposal.get("alternatives", []), width="stretch", hide_index=True)
+                st.caption(proposal["text_evidence"])
+        with st.expander("Blocked actions and permitted alternatives"):
+            st.subheader("Blocked actions")
+            if blocked:
+                st.dataframe(blocked, width="stretch", hide_index=True)
+            else:
+                st.write("No action was blocked by the current policy checks.")
+            st.subheader("Permitted alternatives")
+            alternatives = proposal.get("alternatives", [])
+            if alternatives:
+                st.dataframe(alternatives, width="stretch", hide_index=True)
+            else:
+                st.write("No other permitted action is available in this proposal.")
+        st.caption(f"Decision ID: {proposal['decision_id']} ? Snapshot: "
+                   f"{proposal['data_snapshot_date']} ? Status: {proposal['status']}")
         current_audit = latest_audit_rows(selected_id)
         already_reviewed = any(row["decision_id"] == proposal["decision_id"]
                                and row["disposition"] != "pending_review" for row in current_audit)
@@ -431,7 +478,8 @@ def render_decision() -> None:
             allowed = [action for action, check in checks.items()
                        if check.get("allowed") and action != proposal["action"]]
             with st.container(border=True):
-                st.subheader("Record human review")
+                st.subheader("Your decision")
+                st.caption("Approve accepts the proposed step; Modify selects a permitted alternative; Reject declines it. None sends customer contact.")
                 with st.form("review_form"):
                     reviewer = st.text_input("Reviewer ID", value=st.session_state.auth_user["user_id"],
                                              key="reviewer_id")
@@ -454,7 +502,7 @@ def render_decision() -> None:
                         st.error(f"Review was not recorded: {error}")
                     else:
                         st.success(f"Recorded {event['disposition']} review: {event['event_id']}")
-    with st.expander("Recent audit for this customer", expanded=bool(proposal)):
+    with st.expander("Recent audit for this customer"):
         st.dataframe(latest_audit_rows(selected_id), width="stretch", hide_index=True)
 
 

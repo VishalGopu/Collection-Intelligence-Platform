@@ -78,21 +78,21 @@ Example customer: **`G-883e676faa7837d10aa7`**. This is a useful example because
 
 **Do:** Open **Decision review** and click **Generate recommendation**. Point to the selected ID and the proposal.
 
-**Say:** “The proposed next step is **Wait**, with no contact channel. **Promise kept probability** is about **14.8%** in this snapshot, which is the complement of the 85.2% break risk. The worklist scored evidence at the promise’s creation time, when days past due was **127**; this page scores the current snapshot, when it is **133**. These are two time points, not a contradiction.”
+**Say:** “The recommended next step is **Wait**, with no contact channel. **Estimated chance of keeping a promise** is about **14.8%** in this snapshot, which is the complement of the 85.2% break risk. The worklist scored evidence at the promise’s creation time, when days past due was **127**; this page scores the current snapshot, when it is **133**. These are two time points, not a contradiction.”
 
-**Do:** Read **Why this proposal?** and **Text evidence**.
+**Do:** Read the short **Why?** statement, then expand **Model factors and text evidence**.
 
 **Say:** “The three model explanations are days past due, card utilisation, and the earlier bureau risk score. They describe contributions to this model output, not causal reasons or a moral judgement. An earlier note dated **29 August** has a rule-based stated-delay signal of ‘dispute’. It is context only: a text signal alone cannot trigger adverse treatment or decide the action.”
 
-**Do:** Point to **Blocked actions** and **Permitted alternatives**.
+**Do:** Expand **Blocked actions and permitted alternatives**. Point to both tables or their empty-state message.
 
 **Say:** “The **policy gate** blocks calls and payment-plan discussions because this legal case requires its assigned specialist queue. SMS, email, and push are also blocked for missing or conflicting channel consent. **Wait** is permitted. **Permitted alternatives** is empty here. A high model score cannot override the blocked-actions table.”
 
-**Do:** Point to **Recent audit for this customer**. Generating a proposal writes a pending decision. As `manager`, note the message that a collections specialist must record the human review.
+**Do:** Expand **Recent audit for this customer**. Generating a proposal writes a pending decision. As `manager`, note the message that a collections specialist must record the human review.
 
 **Say:** “The **decision ID**, snapshot date, proposal status, policy checks, explanation, and audit row make the suggestion inspectable. Generating it does **not** send a call, text, email, or other contact.”
 
-**Do, only if you want to demonstrate a review write:** Sign out; sign in as `agent` with the demo password; reselect this customer if needed; open **Decision review** and generate a new proposal. In **Record human review**, leave reviewer ID as `agent`, enter `Legal case requires assigned-queue review; no direct contact authorised` in **Review reason**, and click **Approve**. Reopen **Recent audit for this customer**.
+**Do, only if you want to demonstrate a review write:** Sign out; sign in as `agent` with the demo password; reselect this customer if needed; open **Decision review** and generate a new proposal. In **Your decision**, leave reviewer ID as `agent`, enter `Legal case requires assigned-queue review; no direct contact authorised` in **Review reason**, and click **Approve**. Reopen **Recent audit for this customer**.
 
 **Say:** “Here, approving records acceptance of the **Wait** proposal; it does not approve outreach. **Modify** is available only when the policy gate offers another permitted action. **Reject** records that the specialist disagrees. The audit records reviewer, disposition, final action, reason, and time. In this local demo the role boundary is UI-level; a production service must enforce it server-side.”
 
