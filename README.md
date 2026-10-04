@@ -61,6 +61,8 @@ Download the dataset before the build command; see the dataset guide for its exa
 
 For the official benchmark output, run `python -m src.insights.submission --questions questions.csv --output answers.csv` from the repository root (use the venv's Python on either OS). The output columns are exactly `question_id,answer,sql_or_sources,refused`. See [the uncached first-run ledger](docs/insights/step3_first_run_34.csv) and [fresh-clone verification](docs/fresh_clone_verification.md).
 
+The Customer page's featured dropdown has six quick examples. **Browse all linked customers** searches and pages through the full published C360 catalog (1,001,258 linked golden IDs in this release), 25 at a time, without loading all IDs into Streamlit. It can filter to customers with open cases; selecting a result updates the active golden ID.
+
 The [implemented architecture diagram](docs/architecture_built.png) shows the built components, AI use, and human review. [App interfaces](app/INTERFACES.md) and [hero-flow results](app/INTEGRATION_TEST.md) describe the current integration.
 
 ## What changed from the design

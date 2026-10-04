@@ -2,6 +2,13 @@
 
 All four tabs are connected in `app/main.py`. Customer-level joins require published C360 links with `link_status = 'linked'`; fairness-test fields stay out of displayed answers and decision features. Ask defaults to All Collections and has an explicit This customer selector. The selected scope supports only certified customer routes and refuses unsupported filters. Recommendation uses the selected `golden_customer_id` and shows blocked actions with policy reasons. Worklist shows open promises ranked for human review.
 
+The Customer tab keeps six featured IDs as shortcuts and also has a searchable,
+25-at-a-time browser over all published CRM-linked golden customers. Its count,
+rows, search, and page cursors are queried from C360 Parquet in DuckDB with a
+1 GB memory limit. Only identity ID and non-protected case/quality summary
+fields appear; selecting a row updates the same Customer, Ask, and
+Recommendation ID state.
+
 ## Ask tab — Questions team
 
 App adapter in `app/ask.py`:

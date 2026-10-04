@@ -6,6 +6,7 @@ import streamlit as st
 
 from app.ask import answer as answer_question
 from app.answer_display import display_answer
+from app.catalog import browse_customers
 from app.customer import load_customer
 from app.recommend import connected, latest_audit_rows, recommend, review, worklist
 
@@ -24,6 +25,13 @@ DEMO_IDS = (
 @st.cache_data(show_spinner="Loading linked C360 records…")
 def cached_customer(golden_id: str) -> dict:
     return load_customer(golden_id)
+
+
+@st.cache_data(show_spinner="Searching linked C360 customers…")
+def cached_customer_page(search: str, after_id: str | None,
+                         only_open_cases: bool) -> dict:
+    return browse_customers(search, after_id=after_id,
+                            only_open_cases=only_open_cases)
 
 
 st.set_page_config(page_title="Collection Intelligence", layout="wide")
@@ -56,9 +64,69 @@ with customer_tab:
                          on_click=step_demo, args=(-1,), use_container_width=True)
     next_demo.button("Next demo customer", key="demo_next",
                      on_click=step_demo, args=(1,), use_container_width=True)
-    st.caption("Six demo IDs are available. You can also type or paste any published golden ID below.")
+    st.caption("Featured IDs are shortcuts; browse the full linked C360 catalog below.")
+
+    def reset_catalog() -> None:
+        st.session_state.catalog_page = 0
+        st.session_state.catalog_cursors = [None]
+
+    def next_catalog(last_id: str) -> None:
+        st.session_state.catalog_cursors.append(last_id)
+        st.session_state.catalog_page += 1
+
+    def previous_catalog() -> None:
+        st.session_state.catalog_page -= 1
+        st.session_state.catalog_cursors.pop()
+
+    def open_catalog_customer() -> None:
+        st.session_state.golden_id = st.session_state.catalog_choice
+
+    if "catalog_page" not in st.session_state:
+        reset_catalog()
+    with st.expander("Browse all linked customers", expanded=False):
+        st.text_input("Search golden ID or fragment", key="catalog_search",
+                      on_change=reset_catalog)
+        st.checkbox("Only customers with open cases", key="catalog_open_only",
+                    on_change=reset_catalog)
+        try:
+            page_data = cached_customer_page(
+                st.session_state.catalog_search,
+                st.session_state.catalog_cursors[st.session_state.catalog_page],
+                st.session_state.catalog_open_only,
+            )
+        except (FileNotFoundError, ValueError) as error:
+            st.error(str(error))
+        else:
+            st.caption(f"{page_data['total']:,} linked customers match · "
+                       f"Page {st.session_state.catalog_page + 1}")
+            page_rows = page_data["rows"]
+            if page_rows:
+                st.dataframe([{
+                    "Golden customer ID": row["golden_customer_id"],
+                    "Open cases": row["open_case_count"],
+                    "Highest DPD": row["max_current_dpd"],
+                    "Overdue (CAD)": row["total_overdue_cad"],
+                    "Data quality": row["dq_status"],
+                } for row in page_rows], width="stretch", hide_index=True,
+                             height=max(75, min(850, 35 * (len(page_rows) + 1))))
+                st.selectbox("Open a customer from this page",
+                             [row["golden_customer_id"] for row in page_rows],
+                             key="catalog_choice")
+                st.button("Open selected customer", key="catalog_open",
+                          on_click=open_catalog_customer)
+            else:
+                st.info("No linked customers matched this search.")
+            previous_page, next_page = st.columns(2)
+            previous_page.button("Previous page", key="catalog_previous",
+                                 disabled=st.session_state.catalog_page == 0,
+                                 on_click=previous_catalog, use_container_width=True)
+            next_page.button("Next page", key="catalog_next",
+                             disabled=not page_data["has_next"],
+                             on_click=next_catalog,
+                             args=(page_rows[-1]["golden_customer_id"],) if page_rows else (),
+                             use_container_width=True)
     golden_id = st.text_input("Golden customer ID", key="golden_id",
-                              help="Select a demo customer or paste any published golden ID.").strip()
+                              help="Select a featured or catalog customer, or paste any published golden ID.").strip()
     if golden_id:
         try:
             customer = cached_customer(golden_id)
