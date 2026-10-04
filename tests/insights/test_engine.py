@@ -132,6 +132,41 @@ def test_strict_router_rejects_changed_intent(
     assert (engine._match_question(candidate) == "Q") is should_match
 
 
+def test_open_cases_after_2030_is_global_filtered_and_empty(fixture_root: Path) -> None:
+    engine = bare_engine(fixture_root)
+    engine.connection.execute("CREATE TABLE collections_cases(case_id VARCHAR, case_status VARCHAR, case_open_date DATE)")
+    engine.connection.execute("INSERT INTO collections_cases VALUES ('CS-2026-1', 'open', DATE '2026-09-01')")
+    card = engine.answer("Show open cases created after 1 January 2030.")
+    assert card.answer == "No rows matched"
+    assert card.scope == "global Collections"
+    assert "case_status = 'open'" in card.sql_or_sources
+    assert "2030-01-01" in card.sql_or_sources
+    assert "C:/Users/" not in card.sql_or_sources
+
+
+def test_changed_date_number_and_status_never_reuse_saved_route(fixture_root: Path) -> None:
+    engine = bare_engine(fixture_root)
+    engine._questions = {"Q": "Show 10 open cases created after 1 January 2030"}
+    for changed in (
+        "Show 20 open cases created after 1 January 2030",
+        "Show 10 open cases created after 2 January 2030",
+        "Show 10 closed cases created after 1 January 2030",
+    ):
+        assert engine._match_question(changed) is None
+        assert engine.answer(changed, "Q").question_id != "Q"
+
+
+def test_scoped_filter_is_refused_if_route_cannot_preserve_it(fixture_root: Path, tmp_path: Path) -> None:
+    engine = bare_engine(fixture_root)
+    engine.c360_root = tmp_path
+    engine.connection.execute("CREATE TABLE links(source_system VARCHAR, source_customer_id VARCHAR, golden_customer_id VARCHAR, link_status VARCHAR)")
+    engine.connection.execute(f"COPY links TO '{(tmp_path / 'identity_crosswalk.parquet').as_posix()}' (FORMAT PARQUET)")
+    card = engine.answer("Show this customer's open cases created after 1 January 2030",
+                         scope="G-aaaaaaaaaaaaaaaaaaaa")
+    assert card.refused
+    assert "filter" in card.answer
+
+
 class FakePlanner:
     def __init__(self, sql: str, metric_id: str | None = None):
         self.result = SQLPlan(sql, metric_id)

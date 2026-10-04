@@ -23,12 +23,12 @@ def _refusal(question: str, message: str) -> dict:
     return {
         "question": question, "answer": message, "sql_or_sources": "customer-scope guardrail",
         "refused": True, "mode": "refusal", "data_date": SNAPSHOT_DATE,
-        "metric_definition": None, "scope": "selected customer",
+        "metric_definition": None, "scope": "selected golden customer",
     }
 
 
 def answer(
-    question: str, *, golden_customer_id: str,
+    question: str, *, golden_customer_id: str | None = None,
     dataset_root: Path = DATASET, c360_root: Path = C360,
     customer_context: dict | None = None,
 ) -> dict:
@@ -40,19 +40,21 @@ def answer(
     question = question.strip()
     if not question:
         raise ValueError("Enter a question")
-    context = customer_context or load_customer(golden_customer_id, dataset_root, c360_root)
-    if context["golden_customer_id"] != golden_customer_id:
-        raise ValueError("Selected customer context does not match the requested golden ID")
-    if not context["found"]:
-        raise ValueError("Select a published golden customer first")
+    context = None
+    if golden_customer_id is not None:
+        context = customer_context or load_customer(golden_customer_id, dataset_root, c360_root)
+        if context["golden_customer_id"] != golden_customer_id:
+            raise ValueError("Selected customer context does not match the requested golden ID")
+        if not context["found"]:
+            raise ValueError("Select a published golden customer first")
     case_ids = set(CASE_ID.findall(question))
-    allowed_cases = {str(case_id).upper() for case_id in context["case_ids"]}
-    if case_ids and not {case_id.upper() for case_id in case_ids} <= allowed_cases:
+    allowed_cases = {str(case_id).upper() for case_id in context["case_ids"]} if context else set()
+    if golden_customer_id and case_ids and not {case_id.upper() for case_id in case_ids} <= allowed_cases:
         return _refusal(question, "That case is not linked to the selected golden customer.")
     customer_scoped = bool(CUSTOMER_SCOPE.search(question) or
-                           golden_customer_id.casefold() in question.casefold())
+                           (golden_customer_id and golden_customer_id.casefold() in question.casefold()))
     parameters = inspect.signature(InsightEngine.answer).parameters
-    if customer_scoped and "scope" not in parameters and "golden_customer_id" not in parameters:
+    if golden_customer_id and customer_scoped and "scope" not in parameters and "golden_customer_id" not in parameters:
         return _refusal(
             question,
             "Customer-scoped Ask is waiting for Layer 2's golden-ID scope API. "
@@ -60,20 +62,16 @@ def answer(
         )
     engine = InsightEngine(dataset_root)
     try:
-        if "scope" in parameters:
+        if golden_customer_id and "scope" in parameters:
             card = engine.answer(question, scope=golden_customer_id)
-            scope_connected = True
-        elif "golden_customer_id" in parameters:
+        elif golden_customer_id and "golden_customer_id" in parameters:
             card = engine.answer(question, golden_customer_id=golden_customer_id)
-            scope_connected = True
         else:
-            scope_connected = False
             card = engine.answer(question)
     finally:
         engine.connection.close()
     result = asdict(card)
     result["data_date"] = result.pop("as_of_date")
-    result["scope"] = ("selected linked case" if case_ids else
-                       "selected golden customer" if scope_connected and customer_scoped
+    result["scope"] = ("selected golden customer" if result.get("scope", "").startswith("selected golden customer")
                        else "global Collections")
     return result

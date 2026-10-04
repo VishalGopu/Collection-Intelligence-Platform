@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import csv
-import difflib
 import json
 import os
 import re
@@ -52,6 +51,7 @@ class AnswerCard:
     mode: str = "structured"
     as_of_date: str = SNAPSHOT_DATE
     metric_definition: str | None = None
+    scope: str = "global Collections"
 
     def benchmark_row(self) -> dict[str, str]:
         return {
@@ -103,6 +103,7 @@ class InsightEngine:
             raise FileNotFoundError(f"Dataset release not found at {self.root}")
         self.connection = connection or duckdb.connect(str(cache_database) if cache_database else ":memory:")
         self.connection.execute("PRAGMA disable_progress_bar")
+        self.connection.execute("SET memory_limit='2GB'")
         self.cache_database = cache_database is not None
         self.query_seconds = 0.0
         self.query_count = 0
@@ -167,18 +168,42 @@ class InsightEngine:
             "CREATE OR REPLACE VIEW account_monthly_snapshot AS "
             f"SELECT * EXCLUDE (year) FROM read_parquet('{parquet}', hive_partitioning=true)"
         )
+        self._register_crosswalk_view()
+
+    def _register_crosswalk_view(self) -> bool:
+        crosswalk = self.c360_root / "identity_crosswalk.parquet"
+        if not crosswalk.is_file():
+            return False
+        path = crosswalk.as_posix().replace("'", "''")
+        self.connection.execute(
+            "CREATE OR REPLACE VIEW identity_crosswalk AS "
+            f"SELECT * FROM read_parquet('{path}')"
+        )
+        return True
 
     def answer(self, question: str, question_id: str | None = None, *, scope: str | None = None) -> AnswerCard:
-        if scope and self._is_customer_scoped_question(question):
+        matched = self._match_question(question)
+        if not matched:
+            refusal = self._safety_refusal(question)
+            if refusal:
+                return AnswerCard(question_id or "AD-HOC", question, refusal,
+                                  "policy guardrail", True, "refusal")
+        if scope is not None and self._is_customer_scoped_question(question):
             return self._answer_scoped(question, scope, question_id)
+        if scope is None and self._explicit_customer_reference(question):
+            return AnswerCard(question_id or "AD-HOC", question,
+                              "Select a golden customer to answer this customer-specific question.",
+                              "customer scope required", True, "refusal")
         external_id = question_id if question_id and question_id not in self._questions else None
-        qid = question_id if question_id in self._questions else self._match_question(question)
+        qid = (question_id if question_id in self._questions and
+               self._normalize_question(question) == self._normalize_question(self._questions[question_id])
+               else matched)
         if not qid:
             refusal = self._safety_refusal(question)
             if refusal:
                 card = AnswerCard("AD-HOC", question, refusal, "policy guardrail", True, "refusal")
             else:
-                card = self._answer_with_llm(question)
+                card = self._answer_open_cases_after(question) or self._answer_with_llm(question)
             return replace(card, question_id=external_id) if external_id else card
         canonical = self._questions.get(qid, question)
         if qid in REFUSALS:
@@ -197,13 +222,29 @@ class InsightEngine:
         raise KeyError(f"No governed route for {qid}")
 
     @staticmethod
+    def _explicit_customer_reference(question: str) -> bool:
+        return bool(re.search(r"\b(?:this customer|selected customer|this person's|this person|their (?:cases|contacts|promises|balance)|for this customer|for customer G-[0-9a-f]+)\b", question, re.I))
+
+    @staticmethod
     def _is_customer_scoped_question(question: str) -> bool:
         text = question.casefold()
-        if re.search(r"\b(this customer|selected customer|this person|their (?:cases|contacts|promises|balance)|for this customer|for customer g-|cs-\d{4}-\d+)\b", text):
+        if InsightEngine._explicit_customer_reference(question) or re.search(r"\bcs-\d{4}-\d+\b", text):
             return True
-        if re.search(r"\b(by|per|each|across|compare|rate|percentage|share|average|mean|which)\b", text):
-            return False
-        return bool(re.search(r"\b(open cases|overdue balance|contacts|broken promises)\b", text))
+        return False
+
+    def _answer_open_cases_after(self, question: str) -> AnswerCard | None:
+        match = re.fullmatch(r"\s*show open cases created after (\d{1,2}) (january|february|march|april|may|june|july|august|september|october|november|december) (\d{4})[?.!]?\s*", question, re.I)
+        if not match:
+            return None
+        try:
+            date = datetime.strptime(" ".join(match.groups()), "%d %B %Y").date().isoformat()
+        except ValueError:
+            return self._could_not_answer(question, "invalid date")
+        sql = ("SELECT case_id, case_open_date, case_status FROM collections_cases "
+               f"WHERE case_status = 'open' AND case_open_date > DATE '{date}' "
+               "ORDER BY case_open_date, case_id LIMIT 200")
+        card = self._answer_sql("AD-HOC", question, sql)
+        return replace(card, mode="empty", answer="No rows matched") if card.answer == "case_id,case_open_date,case_status" else card
 
     def _answer_scoped(self, question: str, scope: str, question_id: str | None) -> AnswerCard:
         if not re.fullmatch(r"G-[0-9a-f]{20}", scope):
@@ -211,28 +252,37 @@ class InsightEngine:
         refusal = self._safety_refusal(question)
         if refusal:
             return AnswerCard(question_id or "AD-HOC", question, refusal, "policy guardrail", True, "refusal")
-        crosswalk = self.c360_root / "identity_crosswalk.parquet"
-        if not crosswalk.is_file():
+        if not self._register_crosswalk_view():
             return self._could_not_answer(question, "C360 crosswalk is unavailable; run the Layer 1 build")
-        path = crosswalk.as_posix().replace("'", "''")
         case_match = re.search(r"\bCS-\d{4}-\d+\b", question, re.IGNORECASE)
         case_filter = f" AND c.case_id = '{case_match.group(0).upper()}'" if case_match else ""
         cte = (
             "WITH linked_cases AS ("
             "SELECT c.* FROM collections_cases c JOIN "
-            f"read_parquet('{path}') x ON x.source_system = 'collections' "
+            "identity_crosswalk x ON x.source_system = 'collections' "
             "AND x.source_customer_id = c.coll_customer_ref "
             f"AND x.golden_customer_id = '{scope}' AND x.link_status = 'linked'{case_filter}), "
             "linked_contacts AS (SELECT h.* FROM contact_history h JOIN linked_cases c ON c.case_id = h.case_id "
-            f"JOIN read_parquet('{path}') x ON x.source_system = 'crm' "
+            "JOIN identity_crosswalk x ON x.source_system = 'crm' "
             "AND x.source_customer_id = h.crm_customer_id "
             f"AND x.golden_customer_id = '{scope}' AND x.link_status = 'linked'), "
             "linked_promises AS (SELECT p.* FROM promises_to_pay p JOIN linked_cases c ON c.case_id = p.case_id "
-            f"JOIN read_parquet('{path}') x ON x.source_system = 'crm' "
+            "JOIN identity_crosswalk x ON x.source_system = 'crm' "
             "AND x.source_customer_id = p.crm_customer_id "
             f"AND x.golden_customer_id = '{scope}' AND x.link_status = 'linked') "
         )
         text = question.casefold()
+        # These routes are intentionally narrow: a qualifier we do not implement
+        # must never disappear from the executed SQL.
+        supported = (
+            r"how many open cases does this customer have\??",
+            r"what is this customer's overdue balance\??",
+            r"how many contacts did this customer have\??",
+            r"how many broken promises does this customer have\??",
+            r"what is the status of cs-\d{4}-\d+\??",
+        )
+        if not any(re.fullmatch(pattern, text.strip()) for pattern in supported):
+            return self._could_not_answer(question, "no certified customer-scoped route preserves every question filter")
         if case_match and not any(word in text for word in ("contact", "promise")):
             sql = cte + "SELECT case_id, case_status, current_dpd, round(total_overdue,2) AS overdue_balance_cad FROM linked_cases"
         elif "contact" in text:
@@ -247,17 +297,14 @@ class InsightEngine:
             return self._could_not_answer(question, "no certified customer-scoped route matches this question")
         cursor = self.connection.execute(sql)
         answer = self._format_csv([item[0] for item in cursor.description], cursor.fetchall())
-        return AnswerCard(question_id or "AD-HOC", question, answer, sql, mode="scoped_sql")
+        return AnswerCard(question_id or "AD-HOC", question, answer, sql, mode="scoped_sql",
+                          scope=f"selected golden customer {scope}")
 
     def _match_question(self, question: str) -> str | None:
         normalized = self._normalize_question(question)
         for qid, text in self._questions.items():
             canonical = self._normalize_question(text)
             if normalized == canonical:
-                return qid
-            if self._critical_signature(question) != self._critical_signature(text):
-                continue
-            if difflib.SequenceMatcher(None, normalized, canonical).ratio() >= 0.96:
                 return qid
         return None
 

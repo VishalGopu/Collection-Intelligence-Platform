@@ -86,14 +86,13 @@ with customer_tab:
 with ask_tab:
     st.subheader("Ask Collections")
     st.caption("General metrics and policy answers use the 28 September 2026 release. "
-               "Case questions must refer to a case linked to the selected golden customer.")
+               "Ask defaults to all Collections.")
     question = st.text_area("Question", key="ask_question",
                             placeholder="What is the average days past due of open cases by queue?")
     if st.button("Get answer", key="ask_submit"):
         try:
             st.session_state.ask_result = answer_question(
-                question, golden_customer_id=st.session_state.golden_id.strip(),
-                customer_context=customer if customer and customer["found"] else None,
+                question,
             )
         except Exception as error:
             st.session_state.ask_result = None
